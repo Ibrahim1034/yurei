@@ -1,0 +1,66 @@
+Update the laravel I do not want user to request access 
+
+      <!-- Resources Section -->
+      <section id="news" class="news section light-background">
+        <div class="container section-title">
+          <h2>Official Documents</h2>
+          <div>
+            <span>Important</span>
+            <span class="description-title">Resources</span>
+          </div>
+        </div>
+        <div class="container text-center">
+          <p>Access important documents and resources for YUREI Kenya members.</p>
+          <a href="#contact" class="btn btn-primary">Request Access</a>
+        </div>
+      </section>
+
+      <!-- Team Section -->
+      <section id="team" class="team section">
+        <div class="container section-title">
+          <h2>Our Team</h2>
+          <div>
+            <span>Meet Our</span>
+            <span class="description-title">Leadership</span>
+          </div>
+        </div>
+        <div class="container text-center">
+          <p>Our dedicated team working towards youth empowerment.</p>
+          <a href="#contact" class="btn btn-primary">Meet the Team</a>
+        </div>
+      </section>
+
+      <!-- Donation Section -->
+      <section id="donate" class="donation section light-background">
+        <div class="container section-title">
+          <h2>Support Our Cause</h2>
+          <div>
+            <span>Make a</span> <span class="description-title">Donation</span>
+          </div>
+        </div>
+        <div class="container text-center">
+          <p>Your support helps us empower more youth in Kenya.</p>
+          <a href="#contact" class="btn btn-primary">Donate Now</a>
+        </div>
+      </section>
+
+      <!-- Contact Section -->
+      <section id="contact" class="contact section">
+        <div class="container section-title">
+          <h2>Contact Us</h2>
+          <div>
+            <span>Get In</span> <span class="description-title">Touch</span>
+          </div>
+        </div>
+        <div class="container text-center">
+          <p>Reach out to us for more information or to get involved.</p>
+          <a href="mailto:youthrescueyurei@gmail.com" class="btn btn-primary">Contact Us</a>
+        </div>
+      </section>
+      
+      
+      from the website
+      
+      
+      
+      

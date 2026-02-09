@@ -1,0 +1,4 @@
+- we are forcing https
+- we are using intasend api
+- always update and check config/app.php(time and currency and url)
+- database payments table -> make merchant-request-id null

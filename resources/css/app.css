@@ -1,0 +1,656 @@
+/* resources/css/app.css */
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+:root {
+    --primary-color: #018880;
+    --secondary-color: #003a36;
+    --accent-color: #005751;
+    --surface-color: #ffffff;
+    --contrast-color: #ffffff;
+    --default-color: #444d4d;
+    --heading-color: #003a36;
+}
+
+.retry-mode {
+    border: 2px solid #ffc107 !important;
+    background-color: #fff3cd !important;
+}
+
+/* Add this to your app.css file */
+.auth-container {
+    min-height: 100vh;
+    background: linear-gradient(
+        135deg,
+        var(--secondary-color) 0%,
+        var(--accent-color) 100%
+    ) !important;
+    display: flex;
+    align-items: center;
+    padding: 20px 0;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    border: none;
+    width: 100%;
+    max-width: 650px;
+    margin: 0 auto;
+}
+
+.auth-card .form-control-lg {
+    padding: 15px 20px;
+    font-size: 18px;
+    border-radius: 12px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+    height: auto;
+}
+
+.auth-card .form-control-lg:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(1, 136, 128, 0.25);
+}
+
+.auth-card .btn-lg {
+    padding: 16px 32px;
+    font-size: 18px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.auth-card .form-label {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+/* Override the guest layout container */
+.min-vh-100 .container-fluid {
+    padding: 0 15px;
+}
+
+.min-vh-100 .col-md-8.col-lg-6 {
+    max-width: 650px !important;
+    flex: 0 0 100% !important;
+}
+
+body {
+    font-family: "Roboto", sans-serif;
+    color: var(--default-color);
+    background-color: var(--surface-color);
+}
+
+/* Header Styles */
+.header {
+    background-color: rgba(0, 87, 81, 0.9) !important;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.header .navbar-brand {
+    color: var(--contrast-color) !important;
+    font-weight: 700;
+}
+
+.header .nav-link {
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-family: "Poppins", sans-serif;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.header .nav-link:hover,
+.header .nav-link.active {
+    color: var(--contrast-color) !important;
+}
+
+/* Button Styles */
+.btn-primary {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--contrast-color) !important;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(1, 136, 128, 0.3);
+}
+
+.btn-outline-primary {
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+    font-weight: 500;
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color) !important;
+    color: var(--contrast-color) !important;
+}
+
+.btn-outline-light:hover {
+    background-color: var(--contrast-color) !important;
+    color: var(--primary-color) !important;
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Form Styles */
+.form-control {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    padding: 12px 15px;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(1, 136, 128, 0.25);
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--heading-color);
+    margin-bottom: 8px;
+}
+
+/* Hero Section */
+.hero {
+    background: linear-gradient(
+        135deg,
+        var(--secondary-color) 0%,
+        var(--accent-color) 100%
+    );
+    color: var(--contrast-color);
+    padding: 150px 0 100px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero h2 {
+    font-family: "Raleway", sans-serif;
+    font-weight: 700;
+    font-size: 3.5rem;
+    line-height: 1.2;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .hero h2 {
+        font-size: 2.5rem;
+    }
+
+    .hero {
+        padding: 120px 0 80px 0;
+        text-align: center;
+    }
+}
+
+.hero p {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+}
+
+.hero-btns {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+}
+
+.hero-stats {
+    display: flex;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-item h3 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--contrast-color);
+}
+
+.stat-item p {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    margin: 0;
+}
+
+/* Section Titles */
+.section-title {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.section-title h2 {
+    font-size: 13px;
+    letter-spacing: 1px;
+    font-weight: 700;
+    padding: 8px 20px;
+    background: rgba(1, 136, 128, 0.1);
+    color: var(--primary-color);
+    display: inline-block;
+    text-transform: uppercase;
+    border-radius: 50px;
+    margin-bottom: 15px;
+}
+
+.section-title div {
+    color: var(--heading-color);
+    margin: 10px 0 0 0;
+    font-size: 32px;
+    font-weight: 700;
+    font-family: "Raleway", sans-serif;
+}
+
+.description-title {
+    color: var(--primary-color);
+}
+
+/* Service Cards */
+.service-card {
+    background: var(--surface-color);
+    border-radius: 10px;
+    padding: 30px;
+    height: 100%;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    border-top: 3px solid transparent;
+}
+
+.service-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border-top-color: var(--primary-color);
+}
+
+.icon-box {
+    width: 70px;
+    height: 70px;
+    border-radius: 10px;
+    background-color: rgba(1, 136, 128, 0.1);
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.service-card:hover .icon-box {
+    background-color: var(--primary-color);
+    color: var(--contrast-color);
+}
+
+.service-features {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+}
+
+.service-features li {
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    color: var(--default-color);
+}
+
+/* Floating Cards */
+.floating-card {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    transition: all 0.4s ease;
+    background: var(--surface-color);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.floating-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.event-image-wrapper {
+    position: relative;
+    overflow: hidden;
+}
+
+.event-image {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.floating-card:hover .event-image {
+    transform: scale(1.05);
+}
+
+.event-date-badge {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.event-day {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2a2a2a;
+    line-height: 1;
+}
+
+.event-month {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+.event-content {
+    padding: 25px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.event-content strong {
+    font-size: 20px;
+    color: var(--heading-color);
+    margin-bottom: 15px;
+    display: block;
+}
+
+.event-meta {
+    margin-bottom: 15px;
+}
+
+.event-meta span {
+    font-size: 14px;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.event-content p {
+    color: #6c757d;
+    margin-bottom: 20px;
+    flex: 1;
+}
+
+.event-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.event-category {
+    background: #f8f9fa;
+    color: var(--heading-color);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Background Variations */
+.light-background {
+    background-color: #f1f8f7;
+}
+
+.dark-background {
+    background-color: var(--accent-color);
+    color: var(--contrast-color);
+}
+
+.dark-background h1,
+.dark-background h2,
+.dark-background h3,
+.dark-background h4,
+.dark-background h5,
+.dark-background h6 {
+    color: var(--contrast-color);
+}
+
+/* Auth Pages Styling */
+.auth-container {
+    min-height: 100vh;
+    background: linear-gradient(
+        135deg,
+        var(--secondary-color) 0%,
+        var(--accent-color) 100%
+    );
+    display: flex;
+    align-items: center;
+}
+
+.auth-card {
+    background: var(--surface-color);
+    border-radius: 15px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border-top: 4px solid var(--primary-color);
+}
+
+/* Dashboard Styles */
+.dashboard-card {
+    background: var(--surface-color);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    height: 100%;
+    border-top: 3px solid var(--primary-color);
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(1, 136, 128, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.dashboard-card:hover .dashboard-icon {
+    background: var(--primary-color);
+    color: var(--contrast-color);
+}
+
+/* Navigation Styles for Dashboard */
+.navbar-dashboard {
+    background: var(--surface-color) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* About Section */
+.about-content h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--heading-color);
+    margin-bottom: 1.5rem;
+}
+
+.about-content .lead {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--default-color);
+    margin-bottom: 1.5rem;
+}
+
+.about-content h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--heading-color);
+    margin: 1.5rem 0 1rem 0;
+}
+
+/* Footer Styles */
+.footer {
+    background: var(--secondary-color);
+    color: var(--contrast-color);
+}
+
+.footer h5 {
+    color: var(--contrast-color);
+    margin-bottom: 1rem;
+}
+
+.footer .social-links .btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 2px;
+}
+
+/* Utility Classes */
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.border-primary {
+    border-color: var(--primary-color) !important;
+}
+
+.badge.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .hero-btns {
+        justify-content: center;
+    }
+
+    .hero-stats {
+        justify-content: center;
+        gap: 1.5rem;
+    }
+
+    .stat-item h3 {
+        font-size: 2rem;
+    }
+
+    .auth-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .auth-buttons .btn {
+        width: 100%;
+    }
+
+    .event-meta span {
+        font-size: 12px;
+    }
+}
+
+/* Animation for floating effect */
+@keyframes float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.floating-card {
+    animation: float 6s ease-in-out infinite;
+}
+
+.floating-card:hover {
+    animation: none;
+}
+
+/* Section spacing */
+section {
+    padding: 80px 0;
+}
+
+@media (max-width: 768px) {
+    section {
+        padding: 60px 0;
+    }
+}
+
+/* Image styling */
+.img-fluid {
+    border-radius: 8px;
+}
+
+.rounded {
+    border-radius: 8px !important;
+}
+
+.rounded-circle {
+    border-radius: 50% !important;
+}
+
+/* List group customization */
+.list-group-item {
+    border: none;
+    padding: 1rem 0;
+}
+
+.list-group-item:first-child {
+    border-top: none;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
