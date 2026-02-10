@@ -215,11 +215,10 @@ Route::get('/v1/status', [MpesaSTKPUSHController::class, 'checkStatus'])->name('
 Route::post('/v1/mpesa/stk/push', [MpesaSTKPUSHController::class, 'STKPush'])->name('mpesa.stk.push');
 Route::post('/v1/mpesa/stk/query', [MpesaSTKPUSHController::class, 'stkQuery'])->name('mpesa.stk.query');
 
-// === REMOVE OR COMMENT THIS LINE (line 186) ===
+// REMOVED CONFLICTING ROUTE (Original line 186)
 // Route::post('v1/confirm', [MpesaSTKPUSHController::class, 'STKConfirm'])->name('mpesa.confirm');
 
 // M-Pesa webhook routes (publicly accessible) - NO MIDDLEWARE
-// === KEEP THIS LINE (line 189) ===
 Route::any('/webhook/mpesa/confirm', [MpesaSTKPUSHController::class, 'STKConfirm'])->name('mpesa.confirm');
 Route::any('/webhook/payment/validation', [PaymentController::class, 'validateTransaction'])
     ->name('webhook.payment.validation');
