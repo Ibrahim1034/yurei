@@ -6,6 +6,8 @@ use App\Mpesa\STKPush;
 use App\Models\MpesaSTK;
 use App\Models\User;
 use App\Models\Payment;
+use App\Models\EventPayment; // Added based on usage in handleEventPaymentCallback
+use App\Models\EventRegistration; // Added based on usage in handleEventPaymentCallback
 use Iankumu\Mpesa\Facades\Mpesa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -40,6 +42,7 @@ class MpesaSTKPUSHController extends Controller
         $account_number = $user->membership_number;
 
         // Use the web route for callback
+        // This will now point to: /webhook/mpesa/confirm
         $callbackUrl = route('mpesa.confirm');
 
         Log::info('=== INITIATING STK PUSH ===', [

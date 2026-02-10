@@ -33,7 +33,7 @@ Route::get('/dashboard', function () {
         return redirect()->route('payment.create', auth()->user())
             ->with('error', 'Please complete your payment to access the dashboard.');
     }
-    
+
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -55,11 +55,11 @@ Route::prefix('events')->group(function () {
     // Show registration form - accessible to all
     Route::get('/{event}/register', [EventRegistrationController::class, 'showRegistrationForm'])
         ->name('event.registration.form');
-    
+
     // Process registration - accessible to all
     Route::post('/{event}/register', [EventRegistrationController::class, 'processRegistration'])
         ->name('event.registration.process');
-    
+
     // Show registration success page
     Route::get('/registration/success/{registration}', [EventRegistrationController::class, 'showSuccess'])
         ->name('event.registration.success');
@@ -106,7 +106,7 @@ Route::middleware(['auth', 'verified'])->prefix('programs')->group(function () {
     Route::get('/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
     Route::put('/{program}', [ProgramController::class, 'update'])->name('programs.update');
     Route::delete('/{program}', [ProgramController::class, 'destroy'])->name('programs.destroy');
-    
+
     // Attendance Management Routes - EXPLICITLY DEFINED
     Route::get('/attendants/overview', [ProgramController::class, 'attendants'])->name('programs.attendants');
     Route::get('/{program}/attendants', [ProgramController::class, 'showAttendants'])->name('programs.attendants.show');
@@ -122,7 +122,7 @@ Route::prefix('programs')->group(function () {
 
     Route::get('/{program}/register', [ProgramRegistrationController::class, 'showRegistrationForm'])
         ->name('program.registration.form');
-    
+
     Route::post('/{program}/register', [ProgramRegistrationController::class, 'processRegistration'])
         ->name('program.registration.process');
 });
@@ -181,7 +181,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['au
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    
+
     // Separate profile update routes
     Route::put('/profile/name', [ProfileController::class, 'updateName'])->name('profile.name.update');
     Route::put('/profile/email', [ProfileController::class, 'updateEmail'])->name('profile.email.update');
@@ -214,9 +214,12 @@ Route::get('/v1/status', [MpesaSTKPUSHController::class, 'checkStatus'])->name('
 // M-Pesa STK Push routes
 Route::post('/v1/mpesa/stk/push', [MpesaSTKPUSHController::class, 'STKPush'])->name('mpesa.stk.push');
 Route::post('/v1/mpesa/stk/query', [MpesaSTKPUSHController::class, 'stkQuery'])->name('mpesa.stk.query');
-Route::post('v1/confirm', [MpesaSTKPUSHController::class, 'STKConfirm'])->name('mpesa.confirm');
+
+// === REMOVE OR COMMENT THIS LINE (line 186) ===
+// Route::post('v1/confirm', [MpesaSTKPUSHController::class, 'STKConfirm'])->name('mpesa.confirm');
 
 // M-Pesa webhook routes (publicly accessible) - NO MIDDLEWARE
+// === KEEP THIS LINE (line 189) ===
 Route::any('/webhook/mpesa/confirm', [MpesaSTKPUSHController::class, 'STKConfirm'])->name('mpesa.confirm');
 Route::any('/webhook/payment/validation', [PaymentController::class, 'validateTransaction'])
     ->name('webhook.payment.validation');
@@ -226,7 +229,7 @@ Route::any('/webhook/payment/confirmation', [PaymentController::class, 'confirmT
 
 
 // Test route
-Route::get('/webhook/test', function() {
+Route::get('/webhook/test', function () {
     return response()->json([
         'status' => 'online',
         'message' => 'Webhook is accessible',
@@ -234,4 +237,4 @@ Route::get('/webhook/test', function() {
     ]);
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
