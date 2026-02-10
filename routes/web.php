@@ -236,4 +236,32 @@ Route::get('/webhook/test', function () {
     ]);
 });
 
+// DEBUG ROUTES
+Route::get('/debug/auth', function () {
+    return response()->json([
+        'authenticated' => Auth::check(),
+        'user_id' => Auth::id(),
+        'user' => Auth::user() ? [
+            'id' => Auth::user()->id,
+            'name' => Auth::user()->name,
+            'is_active' => Auth::user()->is_active
+        ] : null,
+        'session_id' => session()->getId(),
+        'session_data' => session()->all()
+    ]);
+});
+
+Route::get('/debug/test-redirect/{id}', function ($id) {
+    return redirect()->route('payment.create', ['user' => $id]);
+});
+
+// Also add a direct test payment route
+Route::get('/test-payment/{id}', function ($id) {
+    $user = \App\Models\User::find($id);
+    if (!$user) {
+        return 'User not found';
+    }
+    return redirect()->route('payment.create', ['user' => $user->id]);
+});
+
 require __DIR__ . '/auth.php';

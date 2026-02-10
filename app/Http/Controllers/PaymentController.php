@@ -12,7 +12,20 @@ class PaymentController extends Controller
 {
     public function create(User $user)
     {
+        \Log::info('🎯 PAYMENT CREATE ACCESSED', [
+            'requested_user_id' => $user->id,
+            'auth_user_id' => Auth::id(),
+            'auth_check' => Auth::check(),
+            'session_user_id' => session()->get('user_id'),
+            'user_is_active' => $user->is_active,
+            'url' => request()->fullUrl()
+        ]);
+
         if (Auth::check() && Auth::id() !== $user->id) {
+            \Log::warning('Unauthorized payment access attempt', [
+                'auth_id' => Auth::id(),
+                'requested_id' => $user->id
+            ]);
             return redirect()->route('login')->with('error', 'Unauthorized access.');
         }
 
@@ -22,7 +35,7 @@ class PaymentController extends Controller
 
         // Determine amount based on user type - UPDATED
         $amount = $user->user_type === 'member' ? 1 : 2; // 1 KES for members, 2 KES for friends
-        
+
         return view('payments.create', compact('user', 'amount'));
     }
 
@@ -45,7 +58,7 @@ class PaymentController extends Controller
 
         // We'll use AJAX to call Kumu's endpoint, so just return the view
         // The JavaScript will handle the STK Push initiation
-        
+
         return redirect()->back();
     }
 

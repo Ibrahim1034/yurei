@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Storage;
@@ -33,8 +34,8 @@ class RegisteredUserController extends Controller
         // Base validation rules
         $rules = [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'phone_number' => ['required', 'string', 'max:15', 'unique:'.User::class],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
+            'phone_number' => ['required', 'string', 'max:15', 'unique:' . User::class],
             'profile_picture' => ['required', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'user_type' => ['required', 'in:member,friend'],
@@ -84,11 +85,24 @@ class RegisteredUserController extends Controller
         // Generate membership number
         $user->generateMembershipNumber();
 
-        event(new Registered($user));
+        \Log::info('🔵 USER CREATED', [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'is_active' => $user->is_active
+        ]);
 
+        event(new Registered($user));
         Auth::login($user);
 
-        // Redirect to payment page
-        return redirect()->route('payment.create', ['user' => $user->id]);
+        // DEBUG: Log authentication status
+        \Log::info('🟡 AUTH STATUS', [
+            'check' => Auth::check(),
+            'id' => Auth::id(),
+            'user' => Auth::user()->id ?? 'null'
+        ]);
+
+        // TRY ALTERNATIVE REDIRECT
+        return redirect()->to('/payment/' . $user->id . '/create');
     }
 }

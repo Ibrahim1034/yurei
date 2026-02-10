@@ -13,6 +13,16 @@ class STKPush
 
     public function confirm(Request $request)
     {
+        \Log::info('🎯 WEBHOOK RECEIVED', [
+            'timestamp' => now(),
+            'url' => $request->fullUrl(),
+            'method' => $request->method(),
+            'ip' => $request->ip(),
+            'headers' => $request->headers->all(),
+            'raw_content' => $request->getContent()
+        ]);
+
+        // REST OF YOUR EXISTING CODE (don't remove anything)
         $this->failed = false;
         $this->response = 'An Unknown Error Occurred';
 
