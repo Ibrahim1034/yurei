@@ -15,9 +15,6 @@
                                 <div class="row small mb-3">
                                     <div class="col-4 text-muted">Name:</div>
                                     <div class="col-8">{{ $user->name }}</div>
-                                    
-
-                                    
                                     <div class="col-4 text-muted">Phone:</div>
                                     <div class="col-8">{{ $user->phone_number }}</div>
                                 </div>
@@ -83,9 +80,18 @@
     let currentCheckoutId = null;
     let isProcessing = false;
     let statusCheckInterval = null;
+    let paymentAttempts = 0;
+    const MAX_PAYMENT_ATTEMPTS = 3;
 
-    function initiateSTKPush() {
+    // FIXED: Added async/await and proper promise handling
+    async function initiateSTKPush() {
         if (isProcessing) return;
+        
+        paymentAttempts++;
+        if (paymentAttempts > MAX_PAYMENT_ATTEMPTS) {
+            showMessage('error', 'Too many payment attempts. Please refresh the page and try again.');
+            return;
+        }
         
         isProcessing = true;
         const button = document.getElementById('pay-button');
@@ -97,27 +103,41 @@
         // Hide any existing messages
         hideAllMessages();
 
-        fetch('{{ route("mpesa.stk.push") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                'user_id': '{{ $user->id }}',
-                'amount': '{{ $amount ?? 1 }}',
-                'phonenumber': '{{ $user->phone_number }}'
-            })
-        })
-        .then(response => {
+        try {
+            // FIXED: Add timeout to prevent hanging promises
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+            const response = await fetch('{{ route("mpesa.stk.push") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    'user_id': '{{ $user->id }}',
+                    'amount': '{{ $amount ?? 1 }}',
+                    'phonenumber': '{{ $user->phone_number }}'
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
             console.log('Response status:', response.status);
+            
+            // FIXED: Handle authentication errors
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = '{{ route("login") }}';
+                return;
+            }
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
-        })
-        .then(data => {
+            
+            const data = await response.json();
             console.log('STK Push response:', data);
             
             if (data.success) {
@@ -141,12 +161,22 @@
                 showMessage('error', data.error || 'Failed to initiate payment');
                 resetButton(button, originalText);
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('STK Push error:', error);
-            showMessage('error', 'Network error: ' + error.message);
+            
+            // FIXED: Better error messages
+            let errorMessage = 'Network error';
+            if (error.name === 'AbortError') {
+                errorMessage = 'Request timed out. Please try again.';
+            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = 'Network connection failed. Please check your internet.';
+            } else {
+                errorMessage = error.message || 'Failed to initiate payment';
+            }
+            
+            showMessage('error', errorMessage);
             resetButton(button, originalText);
-        });
+        }
     }
 
     function startStatusChecking() {
@@ -158,28 +188,35 @@
         // Check status immediately
         checkPaymentStatus();
         
-        // Then check every 3 seconds (more frequent)
-        statusCheckInterval = setInterval(checkPaymentStatus, 3000);
+        // FIXED: Reduced frequency to prevent rate limiting
+        statusCheckInterval = setInterval(checkPaymentStatus, 5000); // 5 seconds
     }
 
-    function checkPaymentStatus() {
+    // FIXED: Added async/await and error handling
+    async function checkPaymentStatus() {
         if (!currentCheckoutId) return;
         
         console.log('Checking payment status for:', currentCheckoutId);
         
-        fetch('/v1/status?checkout_request_id=' + currentCheckoutId, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+            const response = await fetch('/v1/status?checkout_request_id=' + currentCheckoutId, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                },
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
-        })
-        .then(data => {
+            
+            const data = await response.json();
             console.log('Status check response:', data);
             
             if (data.success) {
@@ -188,11 +225,10 @@
                 console.error('Status check failed:', data.error);
                 // Don't stop checking on temporary errors
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Status check error:', error);
             // Don't stop checking on network errors
-        });
+        }
     }
 
     function handlePaymentStatus(data) {
@@ -230,14 +266,18 @@
                 clearInterval(statusCheckInterval);
                 
                 // Show retry option
-                setTimeout(() => {
-                    location.reload();
-                }, 3000);
+                const retryBtn = document.createElement('button');
+                retryBtn.className = 'btn btn-primary btn-sm mt-2';
+                retryBtn.textContent = 'Try Again';
+                retryBtn.onclick = () => location.reload();
+                
+                document.getElementById('error-message').appendChild(retryBtn);
                 break;
                 
             case 'pending':
                 // Still waiting - update status message
-                document.getElementById('status-message').textContent = 'Waiting for payment confirmation...';
+                const elapsed = Math.floor((Date.now() - window.paymentStartTime) / 1000);
+                document.getElementById('status-message').textContent = `Waiting for payment confirmation... (${elapsed}s)`;
                 break;
                 
             default:
@@ -247,7 +287,8 @@
         }
     }
 
-    function confirmPayment() {
+    // FIXED: Added async/await
+    async function confirmPayment() {
         if (!currentCheckoutId) {
             showMessage('error', 'No payment session found');
             return;
@@ -259,24 +300,30 @@
         button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Checking...';
         button.disabled = true;
 
-        fetch('{{ route("mpesa.stk.query") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                'checkout_request_id': currentCheckoutId
-            })
-        })
-        .then(response => {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch('{{ route("mpesa.stk.query") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    'checkout_request_id': currentCheckoutId
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
-        })
-        .then(data => {
+            
+            const data = await response.json();
             console.log('STK Query response:', data);
             
             if (data.success) {
@@ -297,18 +344,30 @@
                         errorMessage = 'Payment timed out';
                     }
                     showMessage('error', errorMessage);
-                    setTimeout(() => location.reload(), 3000);
+                    
+                    // Add retry button
+                    const retryBtn = document.createElement('button');
+                    retryBtn.className = 'btn btn-primary btn-sm mt-2';
+                    retryBtn.textContent = 'Try Again';
+                    retryBtn.onclick = () => location.reload();
+                    
+                    document.getElementById('error-message').appendChild(retryBtn);
                 }
             } else {
-                showMessage('error', 'Failed to check payment status');
+                showMessage('error', data.error || 'Failed to check payment status');
                 resetConfirmButton(button, originalText);
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('STK Query error:', error);
-            showMessage('error', 'Network error checking payment');
+            
+            let errorMessage = 'Network error checking payment';
+            if (error.name === 'AbortError') {
+                errorMessage = 'Request timed out';
+            }
+            
+            showMessage('error', errorMessage);
             resetConfirmButton(button, originalText);
-        });
+        }
     }
 
     function showMessage(type, message) {
@@ -349,10 +408,29 @@
         button.disabled = false;
     }
 
+    // Track payment start time
+    window.paymentStartTime = Date.now();
+
     // Clean up interval when leaving page
     window.addEventListener('beforeunload', function() {
         if (statusCheckInterval) {
             clearInterval(statusCheckInterval);
+        }
+    });
+
+    // FIXED: Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Payment page loaded');
+        
+        // Check if there's already a pending payment
+        const urlParams = new URLSearchParams(window.location.search);
+        const checkoutId = urlParams.get('checkout_request_id');
+        
+        if (checkoutId) {
+            currentCheckoutId = checkoutId;
+            document.getElementById('pay-button').style.display = 'none';
+            document.getElementById('payment-processing-section').classList.remove('d-none');
+            startStatusChecking();
         }
     });
 </script>
