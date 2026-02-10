@@ -21,12 +21,17 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         'webhook/intasend',
         'api/webhook/intasend',
+
         // M-Pesa routes
         'webhook/mpesa/confirm',    // M-Pesa callback (POST from Safaricom)
         'v1/mpesa/stk/push',        // STK Push initiation (POST from your frontend)
         'v1/mpesa/stk/query',       // STK Query (POST from your frontend)
+
         // Payment webhooks
         'webhook/payment/validation',
         'webhook/payment/confirmation',
+
+        // ✅ TEMPORARY: Add register route (remove after testing)
+        // 'register', // Uncomment if JavaScript fix doesn't work
     ];
 }

@@ -541,7 +541,7 @@
             /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
     }
 
-    // UPDATED FUNCTION: Includes loading state and delay
+    // UPDATED FUNCTION: Preserves CSRF token and no delay
     function validateAndSubmit() {
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('password_confirmation').value;
@@ -564,15 +564,11 @@
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
         submitBtn.disabled = true;
         
-        // Disable the form to prevent double submission
-        document.getElementById('registrationForm').querySelectorAll('input, select, button').forEach(element => {
-            element.disabled = true;
-        });
+        // ✅ CRITICAL: Only disable the submit button, NOT other form elements
+        // This preserves the CSRF token (which is a hidden input)
         
-        // Add a small delay to show the loading state
-        setTimeout(() => {
-            document.getElementById('registrationForm').submit();
-        }, 500);
+        // Submit the form immediately
+        document.getElementById('registrationForm').submit();
         
         return true;
     }
