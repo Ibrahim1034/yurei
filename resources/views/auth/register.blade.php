@@ -172,7 +172,7 @@
                                     <button type="button" class="btn btn-secondary btn-lg py-3 fs-5 prev-step" data-prev="1">
                                         <i class="bi bi-arrow-left me-2"></i>Back
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-lg py-3 fs-5 next-step" data-next="3">
+                                    <button type="button" id="step2-continue-btn" class="btn btn-primary btn-lg py-3 fs-5 next-step" data-next="3">
                                         Continue <i class="bi bi-arrow-right ms-2"></i>
                                     </button>
                                 </div>
@@ -529,8 +529,14 @@
         const phoneField = document.getElementById('phone_number');
         const checkingIndicator = document.getElementById('phone-checking') || createCheckingIndicator();
         
+        // Target the specific Continue button in Step 2
+        const continueBtn = document.getElementById('step2-continue-btn');
+        
         checkingIndicator.innerHTML = '<span class="text-info"><i class="bi bi-arrow-repeat spin"></i> Checking availability...</span>';
         checkingIndicator.style.display = 'block';
+        
+        // Disable button while checking
+        if (continueBtn) continueBtn.disabled = true;
         
         // Make AJAX request to check phone number
         fetch('{{ route("check.phone.availability") }}', {
@@ -547,15 +553,23 @@
                 checkingIndicator.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Phone number available</span>';
                 phoneField.classList.remove('is-invalid');
                 phoneField.classList.add('is-valid');
+                
+                // Enable button if available
+                if (continueBtn) continueBtn.disabled = false;
             } else {
                 checkingIndicator.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${data.message}</span>`;
                 phoneField.classList.remove('is-valid');
                 phoneField.classList.add('is-invalid');
+                
+                // Keep button disabled if number already exists
+                if (continueBtn) continueBtn.disabled = true;
             }
         })
         .catch(error => {
             console.error('Error checking phone:', error);
             checkingIndicator.style.display = 'none';
+            // Re-enable button on error just in case, or keep disabled as status unknown
+            if (continueBtn) continueBtn.disabled = false;
         });
         
         function createCheckingIndicator() {
@@ -572,10 +586,16 @@
         const phoneRegex = /^254[0-9]{9}$/;
         const errorDiv = document.getElementById('phone-format-error') || createFormatError();
         
+        // Target the specific Continue button in Step 2
+        const continueBtn = document.getElementById('step2-continue-btn');
+        
         if (input.value.length >= 12 && !phoneRegex.test(input.value)) {
             input.classList.add('is-invalid');
             errorDiv.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> Invalid format. Use: 2547XXXXXXXX</span>';
             errorDiv.style.display = 'block';
+            
+            // Disable button if format is wrong
+            if (continueBtn) continueBtn.disabled = true;
         } else {
             input.classList.remove('is-invalid');
             errorDiv.style.display = 'none';
@@ -583,6 +603,9 @@
             // Auto-check when format is valid
             if (phoneRegex.test(input.value)) {
                 checkPhoneNumberAvailability(input.value);
+            } else if (input.value.length === 0) {
+                // If field is cleared, re-enable button (required attribute will catch it later)
+                if (continueBtn) continueBtn.disabled = false;
             }
         }
         
