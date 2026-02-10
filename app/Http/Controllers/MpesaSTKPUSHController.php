@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Mpesa\STKPush;
@@ -25,7 +26,7 @@ class MpesaSTKPUSHController extends Controller
         ]);
 
         $user = User::findOrFail($request->user_id);
-        
+
         // Check if user is already active
         if ($user->is_active) {
             return response()->json([
@@ -52,11 +53,11 @@ class MpesaSTKPUSHController extends Controller
 
         try {
             Log::info('Calling Mpesa::stkpush()...');
-            
+
             $response = Mpesa::stkpush(
-                phonenumber: $phoneno, 
+                phonenumber: $phoneno,
                 amount: $amount,
-                account_number: $account_number, 
+                account_number: $account_number,
                 callbackurl: $callbackUrl,
                 transactionType: Mpesa::PAYBILL
             );
@@ -66,10 +67,10 @@ class MpesaSTKPUSHController extends Controller
             ]);
 
             /** @var \Illuminate\Http\Client\Response $response */
-            $result = $response->json(); 
+            $result = $response->json();
 
             Log::info('STK Push Response JSON:', $result);
-            
+
             if (isset($result['ResponseCode']) && $result['ResponseCode'] == '0') {
                 // Create STK record with user relationship
                 $stkRecord = MpesaSTK::create([
@@ -96,7 +97,7 @@ class MpesaSTKPUSHController extends Controller
             } else {
                 $errorMessage = $result['errorMessage'] ?? 'Failed to initiate STK push';
                 Log::error('STK Push failed - API response error', [
-                    'error' => $errorMessage, 
+                    'error' => $errorMessage,
                     'response' => $result,
                     'response_code' => $result['ResponseCode'] ?? 'N/A'
                 ]);
@@ -122,6 +123,15 @@ class MpesaSTKPUSHController extends Controller
 
     public function STKConfirm(Request $request)
     {
+        // Add this FIRST - handle empty/GET requests
+        if ($request->method() === 'GET' || empty($request->getContent())) {
+            Log::info('Test/empty webhook request received');
+            return response()->json([
+                'ResultCode' => 0,
+                'ResultDesc' => 'Webhook is online'
+            ]);
+        }
+
         Log::info('=== MPESA CALLBACK RECEIVED ===', [
             'headers' => $request->headers->all(),
             'raw_body' => $request->getContent(),
@@ -129,7 +139,7 @@ class MpesaSTKPUSHController extends Controller
         ]);
 
         $stk_push_confirm = (new STKPush())->confirm($request);
-        
+
         if ($stk_push_confirm && !$stk_push_confirm->failed) {
             $this->result_code = 0;
             $this->result_desc = 'Success';
@@ -137,7 +147,7 @@ class MpesaSTKPUSHController extends Controller
             $this->result_code = 1;
             $this->result_desc = $stk_push_confirm->response ?? 'Failed';
         }
-        
+
         Log::info('Callback response', [
             'ResultCode' => $this->result_code,
             'ResultDesc' => $this->result_desc
@@ -149,81 +159,80 @@ class MpesaSTKPUSHController extends Controller
         ]);
     }
 
-// In MpesaSTKPUSHController - update stkQuery method to handle specific messages
-public function stkQuery(Request $request)
-{
-    $checkoutRequestId = $request->input('checkout_request_id');
-    
-    if (!$checkoutRequestId) {
-        return response()->json([
-            'success' => false,
-            'error' => 'checkout_request_id is required'
-        ], 400);
-    }
+    // In MpesaSTKPUSHController - update stkQuery method to handle specific messages
+    public function stkQuery(Request $request)
+    {
+        $checkoutRequestId = $request->input('checkout_request_id');
 
-    Log::info('=== INITIATING STK QUERY ===', [
-        'checkout_request_id' => $checkoutRequestId
-    ]);
+        if (!$checkoutRequestId) {
+            return response()->json([
+                'success' => false,
+                'error' => 'checkout_request_id is required'
+            ], 400);
+        }
 
-    try {
-        $response = Mpesa::stkquery($checkoutRequestId);
-        
-        /** @var \Illuminate\Http\Client\Response $response */
-        $result = $response->json();
+        Log::info('=== INITIATING STK QUERY ===', [
+            'checkout_request_id' => $checkoutRequestId
+        ]);
 
-        Log::info('STK Query Response:', $result);
+        try {
+            $response = Mpesa::stkquery($checkoutRequestId);
 
-        // Find the STK record
-        $stkRecord = MpesaSTK::where('checkout_request_id', $checkoutRequestId)->first();
-        
-        if ($stkRecord) {
-            // Update STK record with query result
-            if (isset($result['ResultCode'])) {
-                $status = $result['ResultCode'] == '0' ? 'completed' : 'failed';
-                
-                $stkRecord->update([
-                    'result_code' => $result['ResultCode'],
-                    'result_desc' => $result['ResultDesc'],
-                    'status' => $status
-                ]);
+            /** @var \Illuminate\Http\Client\Response $response */
+            $result = $response->json();
 
-                // If payment is successful, create payment record and activate user
-                if ($result['ResultCode'] == '0') {
-                    $this->createPaymentRecord($stkRecord);
-                    
-                    // Activate user
-                    if ($stkRecord->user_id) {
-                        $user = User::find($stkRecord->user_id);
-                        if ($user && !$user->is_active) {
-                            $user->update(['is_active' => true]);
-                            Log::info('User activated after successful STK query', [
-                                'user_id' => $user->id,
-                                'stk_id' => $stkRecord->id
-                            ]);
+            Log::info('STK Query Response:', $result);
+
+            // Find the STK record
+            $stkRecord = MpesaSTK::where('checkout_request_id', $checkoutRequestId)->first();
+
+            if ($stkRecord) {
+                // Update STK record with query result
+                if (isset($result['ResultCode'])) {
+                    $status = $result['ResultCode'] == '0' ? 'completed' : 'failed';
+
+                    $stkRecord->update([
+                        'result_code' => $result['ResultCode'],
+                        'result_desc' => $result['ResultDesc'],
+                        'status' => $status
+                    ]);
+
+                    // If payment is successful, create payment record and activate user
+                    if ($result['ResultCode'] == '0') {
+                        $this->createPaymentRecord($stkRecord);
+
+                        // Activate user
+                        if ($stkRecord->user_id) {
+                            $user = User::find($stkRecord->user_id);
+                            if ($user && !$user->is_active) {
+                                $user->update(['is_active' => true]);
+                                Log::info('User activated after successful STK query', [
+                                    'user_id' => $user->id,
+                                    'stk_id' => $stkRecord->id
+                                ]);
+                            }
                         }
                     }
                 }
             }
+
+            return response()->json([
+                'success' => true,
+                'result' => $result,
+                'status' => $stkRecord->status ?? 'unknown'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('STK Query exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to query transaction: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'result' => $result,
-            'status' => $stkRecord->status ?? 'unknown'
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('STK Query exception', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        
-        return response()->json([
-            'success' => false,
-            'error' => 'Failed to query transaction: ' . $e->getMessage()
-        ], 500);
     }
-}
 
     // Create payment record from STK record
     private function createPaymentRecord($stkRecord)
@@ -256,149 +265,149 @@ public function stkQuery(Request $request)
     }
 
 
-public function checkStatus(Request $request)
-{
-    $checkoutRequestId = $request->query('checkout_request_id');
-    
-    if (!$checkoutRequestId) {
-        return response()->json([
-            'success' => false,
-            'error' => 'checkout_request_id is required'
-        ], 400);
-    }
-    
-    Log::info('Checking payment status', ['checkout_request_id' => $checkoutRequestId]);
-    
-    $stkRecord = MpesaSTK::where('checkout_request_id', $checkoutRequestId)->first();
-    
-    if (!$stkRecord) {
-        return response()->json([
-            'success' => false,
-            'error' => 'Transaction not found'
-        ], 404);
-    }
+    public function checkStatus(Request $request)
+    {
+        $checkoutRequestId = $request->query('checkout_request_id');
 
-    Log::info('Payment status found', [
-        'status' => $stkRecord->status,
-        'result_code' => $stkRecord->result_code,
-        'result_desc' => $stkRecord->result_desc
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'status' => $stkRecord->status,
-        'result_code' => $stkRecord->result_code,
-        'result_desc' => $stkRecord->result_desc,
-        'active' => $stkRecord->user->is_active ?? false,
-        'user_id' => $stkRecord->user_id
-    ]);
-}
-
-
-// Add to MpesaSTKPUSHController
-public function handleEventPaymentCallback(Request $request)
-{
-    Log::info('=== EVENT PAYMENT CALLBACK RECEIVED ===', [
-        'headers' => $request->headers->all(),
-        'raw_body' => $request->getContent(),
-        'parsed_payload' => $request->all(),
-    ]);
-
-    $callbackData = $request->all();
-
-    if (isset($callbackData['Body']['stkCallback'])) {
-        $stkCallback = $callbackData['Body']['stkCallback'];
-        $merchantRequestId = $stkCallback['MerchantRequestID'];
-        $checkoutRequestId = $stkCallback['CheckoutRequestID'];
-        $resultCode = $stkCallback['ResultCode'];
-        $resultDesc = $stkCallback['ResultDesc'];
-
-        // Check if this is an event payment (account number starts with EVENT-)
-        $isEventPayment = false;
-        if (isset($stkCallback['CallbackMetadata']['Item'])) {
-            foreach ($stkCallback['CallbackMetadata']['Item'] as $item) {
-                if ($item['Name'] == 'AccountNumber' && strpos($item['Value'] ?? '', 'EVENT-') === 0) {
-                    $isEventPayment = true;
-                    break;
-                }
-            }
+        if (!$checkoutRequestId) {
+            return response()->json([
+                'success' => false,
+                'error' => 'checkout_request_id is required'
+            ], 400);
         }
 
-        if ($isEventPayment) {
-            // Handle event payment
-            $payment = EventPayment::where('checkout_request_id', $checkoutRequestId)->first();
+        Log::info('Checking payment status', ['checkout_request_id' => $checkoutRequestId]);
 
-            if ($payment) {
-                $status = $resultCode == 0 ? 'completed' : 'failed';
-                
-                $payment->update([
-                    'result_code' => $resultCode,
-                    'result_desc' => $resultDesc,
-                    'status' => $status
-                ]);
+        $stkRecord = MpesaSTK::where('checkout_request_id', $checkoutRequestId)->first();
 
-                // If payment successful, update registration and send email
-                if ($resultCode == 0 && isset($stkCallback['CallbackMetadata']['Item'])) {
-                    $items = $stkCallback['CallbackMetadata']['Item'];
-                    
-                    $mpesaReceiptNumber = null;
-                    $transactionDate = null;
+        if (!$stkRecord) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Transaction not found'
+            ], 404);
+        }
 
-                    foreach ($items as $item) {
-                        if ($item['Name'] == 'MpesaReceiptNumber') {
-                            $mpesaReceiptNumber = $item['Value'];
-                        } elseif ($item['Name'] == 'TransactionDate') {
-                            $transactionDate = $item['Value'];
-                        }
+        Log::info('Payment status found', [
+            'status' => $stkRecord->status,
+            'result_code' => $stkRecord->result_code,
+            'result_desc' => $stkRecord->result_desc
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'status' => $stkRecord->status,
+            'result_code' => $stkRecord->result_code,
+            'result_desc' => $stkRecord->result_desc,
+            'active' => $stkRecord->user->is_active ?? false,
+            'user_id' => $stkRecord->user_id
+        ]);
+    }
+
+
+    // Add to MpesaSTKPUSHController
+    public function handleEventPaymentCallback(Request $request)
+    {
+        Log::info('=== EVENT PAYMENT CALLBACK RECEIVED ===', [
+            'headers' => $request->headers->all(),
+            'raw_body' => $request->getContent(),
+            'parsed_payload' => $request->all(),
+        ]);
+
+        $callbackData = $request->all();
+
+        if (isset($callbackData['Body']['stkCallback'])) {
+            $stkCallback = $callbackData['Body']['stkCallback'];
+            $merchantRequestId = $stkCallback['MerchantRequestID'];
+            $checkoutRequestId = $stkCallback['CheckoutRequestID'];
+            $resultCode = $stkCallback['ResultCode'];
+            $resultDesc = $stkCallback['ResultDesc'];
+
+            // Check if this is an event payment (account number starts with EVENT-)
+            $isEventPayment = false;
+            if (isset($stkCallback['CallbackMetadata']['Item'])) {
+                foreach ($stkCallback['CallbackMetadata']['Item'] as $item) {
+                    if ($item['Name'] == 'AccountNumber' && strpos($item['Value'] ?? '', 'EVENT-') === 0) {
+                        $isEventPayment = true;
+                        break;
                     }
+                }
+            }
+
+            if ($isEventPayment) {
+                // Handle event payment
+                $payment = EventPayment::where('checkout_request_id', $checkoutRequestId)->first();
+
+                if ($payment) {
+                    $status = $resultCode == 0 ? 'completed' : 'failed';
 
                     $payment->update([
-                        'mpesa_receipt_number' => $mpesaReceiptNumber,
-                        'transaction_date' => $transactionDate ? \Carbon\Carbon::createFromFormat('YmdHis', $transactionDate) : null
+                        'result_code' => $resultCode,
+                        'result_desc' => $resultDesc,
+                        'status' => $status
                     ]);
 
-                    // Find and update the registration
-                    $registration = EventRegistration::find($payment->event_registration_id);
-                    
-                    if ($registration) {
-                        $registration->update([
-                            'payment_status' => 'paid',
+                    // If payment successful, update registration and send email
+                    if ($resultCode == 0 && isset($stkCallback['CallbackMetadata']['Item'])) {
+                        $items = $stkCallback['CallbackMetadata']['Item'];
+
+                        $mpesaReceiptNumber = null;
+                        $transactionDate = null;
+
+                        foreach ($items as $item) {
+                            if ($item['Name'] == 'MpesaReceiptNumber') {
+                                $mpesaReceiptNumber = $item['Value'];
+                            } elseif ($item['Name'] == 'TransactionDate') {
+                                $transactionDate = $item['Value'];
+                            }
+                        }
+
+                        $payment->update([
                             'mpesa_receipt_number' => $mpesaReceiptNumber,
-                            'status' => 'confirmed'
+                            'transaction_date' => $transactionDate ? \Carbon\Carbon::createFromFormat('YmdHis', $transactionDate) : null
                         ]);
 
-                        // Increment event participants
-                        $registration->event->increment('current_participants');
+                        // Find and update the registration
+                        $registration = EventRegistration::find($payment->event_registration_id);
 
-                        // Send confirmation email
-                        try {
-                            Mail::to($registration->user->email)
-                                ->send(new EventRegistrationConfirmation($registration));
-                            
-                            $registration->update(['confirmation_email_sent' => true]);
-                            
-                            Log::info('Event registration confirmation email sent via callback', [
-                                'registration_id' => $registration->id,
-                                'user_email' => $registration->user->email
+                        if ($registration) {
+                            $registration->update([
+                                'payment_status' => 'paid',
+                                'mpesa_receipt_number' => $mpesaReceiptNumber,
+                                'status' => 'confirmed'
                             ]);
-                        } catch (\Exception $e) {
-                            Log::error('Failed to send event registration email via callback', [
-                                'error' => $e->getMessage(),
-                                'registration_id' => $registration->id
-                            ]);
+
+                            // Increment event participants
+                            $registration->event->increment('current_participants');
+
+                            // Send confirmation email
+                            try {
+                                Mail::to($registration->user->email)
+                                    ->send(new EventRegistrationConfirmation($registration));
+
+                                $registration->update(['confirmation_email_sent' => true]);
+
+                                Log::info('Event registration confirmation email sent via callback', [
+                                    'registration_id' => $registration->id,
+                                    'user_email' => $registration->user->email
+                                ]);
+                            } catch (\Exception $e) {
+                                Log::error('Failed to send event registration email via callback', [
+                                    'error' => $e->getMessage(),
+                                    'registration_id' => $registration->id
+                                ]);
+                            }
                         }
                     }
                 }
+            } else {
+                // Handle regular membership payment (existing logic)
+                // ... your existing callback logic for membership payments
             }
-        } else {
-            // Handle regular membership payment (existing logic)
-            // ... your existing callback logic for membership payments
         }
-    }
 
-    return response()->json([
-        'ResultCode' => 0,
-        'ResultDesc' => 'Success'
-    ]);
-}
+        return response()->json([
+            'ResultCode' => 0,
+            'ResultDesc' => 'Success'
+        ]);
+    }
 }
