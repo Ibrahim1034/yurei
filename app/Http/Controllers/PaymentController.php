@@ -12,28 +12,62 @@ class PaymentController extends Controller
 {
     public function create(User $user)
     {
-        \Log::info('🎯 PAYMENT CREATE ACCESSED', [
+        // FAIL-SAFE: Ensure user has a valid session or is logged in
+        if (!session()->has('registration_user_id') && !Auth::check()) {
+            Log::warning('No session or auth for payment page', ['user_id' => $user->id]);
+            return redirect()->route('register')->with('error', 'Please start the registration process.');
+        }
+
+        Log::info('🎯 PAYMENT CREATE ACCESSED', [
             'requested_user_id' => $user->id,
             'auth_user_id' => Auth::id(),
             'auth_check' => Auth::check(),
             'session_user_id' => session()->get('user_id'),
+            'session_registration_user_id' => session()->get('registration_user_id'),
             'user_is_active' => $user->is_active,
             'url' => request()->fullUrl()
         ]);
 
-        if (Auth::check() && Auth::id() !== $user->id) {
-            \Log::warning('Unauthorized payment access attempt', [
+        // FIXED LOGIC: Allow access if:
+        // 1. User is authenticated and it's their own payment page
+        // 2. OR if this is a fresh registration (session has registration_user_id)
+        // 3. OR if session has registration_complete flag
+
+        $sessionRegistrationUserId = session()->get('registration_user_id');
+        $isFreshRegistration = ($sessionRegistrationUserId == $user->id);
+        $isOwnAccount = (Auth::check() && Auth::id() == $user->id);
+
+        if (!$isOwnAccount && !$isFreshRegistration) {
+            Log::warning('❌ UNAUTHORIZED PAYMENT ACCESS', [
                 'auth_id' => Auth::id(),
-                'requested_id' => $user->id
+                'requested_id' => $user->id,
+                'session_registration_user_id' => $sessionRegistrationUserId,
+                'is_fresh_registration' => $isFreshRegistration
             ]);
-            return redirect()->route('login')->with('error', 'Unauthorized access.');
+
+            // If user is authenticated but trying to access someone else's payment
+            if (Auth::check()) {
+                return redirect()->route('dashboard')->with('error', 'You can only access your own payment page.');
+            }
+
+            return redirect()->route('login')->with('error', 'Please log in to complete your registration.');
+        }
+
+        // If we got here via fresh registration but user is not authenticated, log them in
+        if ($isFreshRegistration && !Auth::check()) {
+            Auth::login($user);
+            Log::info('🔄 AUTO-LOGGED IN USER FOR PAYMENT', ['user_id' => $user->id]);
+
+            // Clear the registration flag now that they're properly logged in
+            session()->forget('registration_user_id');
+            session()->forget('registration_complete');
         }
 
         if ($user->is_active) {
             return redirect()->route('dashboard')->with('status', 'Your account is already active.');
         }
 
-        // Determine amount based on user type - UPDATED
+        // Determine amount based on user type
         $amount = $user->user_type === 'member' ? 1 : 2; // 1 KES for members, 2 KES for friends
 
         return view('payments.create', compact('user', 'amount'));
@@ -68,7 +102,7 @@ class PaymentController extends Controller
     public function checkStatus(Request $request)
     {
         // Get the latest transaction for the logged-in user
-        $stkRecord = \App\Models\MpesaSTK::where('user_id', auth()->id())
+        $stkRecord = MpesaSTK::where('user_id', auth()->id())
             ->latest()
             ->first();
 
@@ -87,6 +121,12 @@ class PaymentController extends Controller
                 $user->update([
                     'is_active' => true,
                     'expiration_date' => now()->addYear(),
+                ]);
+
+                Log::info('✅ USER ACTIVATED AFTER SUCCESSFUL PAYMENT', [
+                    'user_id' => $user->id,
+                    'stk_id' => $stkRecord->id,
+                    'amount' => $stkRecord->amount
                 ]);
             }
 
@@ -126,6 +166,11 @@ class PaymentController extends Controller
                 $user->update([
                     'is_active' => true,
                     'expiration_date' => now()->addYear(),
+                ]);
+
+                Log::info('✅ USER ACTIVATED VIA SUCCESS PAGE', [
+                    'user_id' => $user->id,
+                    'stk_id' => $stkRecord->id
                 ]);
             }
         }
@@ -204,5 +249,29 @@ class PaymentController extends Controller
         }
 
         return redirect()->route('payment.create', Auth::user())->with('error', 'Payment failed. Please try again.');
+    }
+
+    /**
+     * Retry payment for failed/cancelled transactions
+     */
+    public function retryPayment(User $user)
+    {
+        if (!Auth::check() || Auth::id() !== $user->id) {
+            return redirect()->route('login')->with('error', 'Unauthorized access.');
+        }
+
+        if ($user->is_active) {
+            return redirect()->route('dashboard')->with('status', 'Your account is already active.');
+        }
+
+        $amount = $user->user_type === 'member' ? 1 : 2;
+
+        Log::info('🔄 RETRYING PAYMENT', [
+            'user_id' => $user->id,
+            'amount' => $amount,
+            'user_type' => $user->user_type
+        ]);
+
+        return view('payments.create', compact('user', 'amount'));
     }
 }

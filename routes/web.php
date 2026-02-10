@@ -1,5 +1,4 @@
 <?php
-// routes/web.php
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PaymentController;
@@ -20,119 +19,191 @@ use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\ProgramPaymentController;
 use App\Http\Controllers\ProgramRegistrationController;
-use Illuminate\Contracts\Log;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
+
+// Root Route
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    // Check if user is active
-    if (auth()->check() && !auth()->user()->is_active) {
-        return redirect()->route('payment.create', auth()->user())
-            ->with('error', 'Please complete your payment to access the dashboard.');
-    }
+// ============== AUTH ROUTES ==============
+// GET routes for viewing forms (Guests only)
+Route::middleware('guest')->group(function () {
+    Route::get('register', [RegisteredUserController::class, 'create'])
+        ->name('register');
 
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+        ->name('login');
 
-Route::get('/admin/dashboard', function () {
-    // Debug info
-    \Log::info('Admin dashboard accessed by user: ' . auth()->id());
-    return view('admin.dashboard');
-})->middleware(['auth'])->name('admin.dashboard');
+    Route::get('forgot-password', [\App\Http\Controllers\Auth\PasswordResetLinkController::class, 'create'])
+        ->name('password.request');
 
-// Events Routes
+    Route::get('reset-password/{token}', [\App\Http\Controllers\Auth\NewPasswordController::class, 'create'])
+        ->name('password.reset');
+});
+
+// POST routes for processing forms (Moved outside 'guest' middleware to fix registration loop)
+Route::post('login', [AuthenticatedSessionController::class, 'store']);
+Route::post('register', [RegisteredUserController::class, 'store']); // <--- CRITICAL FIX
+
+Route::post('forgot-password', [\App\Http\Controllers\Auth\PasswordResetLinkController::class, 'store'])
+    ->name('password.email');
+Route::post('reset-password', [\App\Http\Controllers\Auth\NewPasswordController::class, 'store'])
+    ->name('password.store');
+
+Route::middleware('auth')->group(function () {
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+});
+
+// ============== PAYMENT ROUTES ==============
+Route::get('/payment/{user}/create', [PaymentController::class, 'create'])->name('payment.create');
+Route::get('/payment/success', [PaymentController::class, 'success'])->name('payment.success');
+Route::get('/payment/processing', [PaymentController::class, 'processing'])->name('payment.processing');
+Route::get('/payment/{user}/retry', [PaymentController::class, 'retryPayment'])->name('payment.retry');
+
+// ============== M-PESA ROUTES ==============
+Route::get('/v1/status', [MpesaSTKPUSHController::class, 'checkStatus'])->name('mpesa.status');
+Route::post('/v1/mpesa/stk/push', [MpesaSTKPUSHController::class, 'STKPush'])->name('mpesa.stk.push');
+Route::post('/v1/mpesa/stk/query', [MpesaSTKPUSHController::class, 'stkQuery'])->name('mpesa.stk.query');
+
+// M-Pesa webhook routes (publicly accessible, CSRF exempt)
+Route::post('/v1/mpesa/confirm', [MpesaSTKPUSHController::class, 'STKConfirm'])
+    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])
+    ->name('mpesa.confirm');
+
+Route::any('/webhook/payment/validation', [PaymentController::class, 'validateTransaction'])
+    ->name('webhook.payment.validation');
+Route::any('/webhook/payment/confirmation', [PaymentController::class, 'confirmTransaction'])
+    ->name('webhook.payment.confirmation');
+
+// ============== DASHBOARD ROUTES ==============
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/admin/dashboard', [DashboardController::class, 'adminDashboard'])->middleware(['auth'])->name('admin.dashboard');
+
+// ============== PROFILE ROUTES ==============
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Separate profile update routes
+    Route::put('/profile/name', [ProfileController::class, 'updateName'])->name('profile.name.update');
+    Route::put('/profile/email', [ProfileController::class, 'updateEmail'])->name('profile.email.update');
+    Route::put('/profile/phone', [ProfileController::class, 'updatePhone'])->name('profile.phone.update');
+    Route::put('/profile/picture', [ProfileController::class, 'updateProfilePicture'])->name('profile.picture.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+});
+
+// ============== PROTECTED RESOURCE ROUTES ==============
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Events
     Route::resource('events', EventController::class);
-});
 
-// In your routes/web.php file, update the event payment routes:
-
-// Event Registration Routes - Accessible to all (authenticated and guests)
-Route::prefix('events')->group(function () {
-    // Show registration form - accessible to all
-    Route::get('/{event}/register', [EventRegistrationController::class, 'showRegistrationForm'])
-        ->name('event.registration.form');
-
-    // Process registration - accessible to all
-    Route::post('/{event}/register', [EventRegistrationController::class, 'processRegistration'])
-        ->name('event.registration.process');
-
-    // Show registration success page
-    Route::get('/registration/success/{registration}', [EventRegistrationController::class, 'showSuccess'])
-        ->name('event.registration.success');
-});
-
-// In web.php - Add this route
-Route::post('/events/{event}/register/retry', [EventRegistrationController::class, 'retryPayment'])
-    ->name('event.registration.retry');
-
-// Event payment routes
-Route::post('/event-payment/initiate', [App\Http\Controllers\EventPaymentController::class, 'initiatePayment'])->name('event.payment.initiate');
-Route::get('/event-payment/status', [App\Http\Controllers\EventPaymentController::class, 'checkPaymentStatus'])->name('event.payment.status');
-Route::post('/event-payment/query', [App\Http\Controllers\EventPaymentController::class, 'stkQuery'])->name('event.payment.query');
-
-// Event Payment Routes - Add these outside the events prefix
-Route::prefix('event')->group(function () {
-
-    Route::post('/payment/confirm', [EventPaymentController::class, 'confirmPayment'])->name('event.payment.confirm');
-});
-
-// Documents Routes
-Route::middleware(['auth', 'verified'])->group(function () {
+    // Documents
     Route::resource('documents', DocumentController::class);
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
-});
 
-// Add this to your existing routes, preferably in the admin section
-Route::middleware(['auth'])->group(function () {
+    // Users
     Route::resource('users', UserController::class);
     Route::get('/users/{user}/membership-card', [UserController::class, 'viewMembershipCard'])->name('users.membership-card');
-});
 
-// Add these routes to your web.php file
-Route::middleware(['auth'])->group(function () {
+    // Leadership
     Route::resource('leadership', LeadershipController::class);
+
+    // Membership Card
+    Route::get('/membership-card/create', [MembershipCardController::class, 'create'])->name('membership-card.create');
+    Route::post('/membership-card/store', [MembershipCardController::class, 'store'])->name('membership-card.store');
+    Route::get('/membership-card', [MembershipCardController::class, 'show'])->name('membership-card.show');
+    Route::get('/membership-card/download', [MembershipCardController::class, 'downloadPdf'])->name('membership-card.download');
+    Route::get('/membership-card/print', [MembershipCardController::class, 'print'])->name('membership-card.print');
+    Route::get('/membership-card/export/{type}', [MembershipCardController::class, 'export'])->name('membership-card.export');
+
+    // Gallery
+    Route::resource('gallery', GalleryController::class);
+
+    // Programs (Admin)
+    Route::prefix('programs')->group(function () {
+        Route::get('/', [ProgramController::class, 'index'])->name('programs.index');
+        Route::get('/create', [ProgramController::class, 'create'])->name('programs.create');
+        Route::post('/', [ProgramController::class, 'store'])->name('programs.store');
+        Route::get('/{program}', [ProgramController::class, 'show'])->name('programs.show');
+        Route::get('/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
+        Route::put('/{program}', [ProgramController::class, 'update'])->name('programs.update');
+        Route::delete('/{program}', [ProgramController::class, 'destroy'])->name('programs.destroy');
+
+        // Attendance
+        Route::get('/attendants/overview', [ProgramController::class, 'attendants'])->name('programs.attendants');
+        Route::get('/{program}/attendants', [ProgramController::class, 'showAttendants'])->name('programs.attendants.show');
+        Route::post('/{program}/attendants/mark', [ProgramController::class, 'markAttendance'])->name('programs.attendants.mark');
+        Route::get('/{program}/attendants/export', [ProgramController::class, 'exportAttendants'])->name('programs.attendants.export');
+    });
+
+    // My Invitations
+    Route::get('/my-invitations', [UserController::class, 'myInvitations'])->name('user.invitations');
 });
 
-Route::middleware(['auth', 'verified'])->prefix('programs')->group(function () {
-    // Resource routes
-    Route::get('/', [ProgramController::class, 'index'])->name('programs.index');
-    Route::get('/create', [ProgramController::class, 'create'])->name('programs.create');
-    Route::post('/', [ProgramController::class, 'store'])->name('programs.store');
-    Route::get('/{program}', [ProgramController::class, 'show'])->name('programs.show');
-    Route::get('/{program}/edit', [ProgramController::class, 'edit'])->name('programs.edit');
-    Route::put('/{program}', [ProgramController::class, 'update'])->name('programs.update');
-    Route::delete('/{program}', [ProgramController::class, 'destroy'])->name('programs.destroy');
+// ============== PUBLIC/REGISTRATION ROUTES ==============
 
-    // Attendance Management Routes - EXPLICITLY DEFINED
-    Route::get('/attendants/overview', [ProgramController::class, 'attendants'])->name('programs.attendants');
-    Route::get('/{program}/attendants', [ProgramController::class, 'showAttendants'])->name('programs.attendants.show');
-    Route::post('/{program}/attendants/mark', [ProgramController::class, 'markAttendance'])->name('programs.attendants.mark');
-    Route::get('/{program}/attendants/export', [ProgramController::class, 'exportAttendants'])->name('programs.attendants.export');
+// Event Registration (Accessible to Authenticated Users)
+Route::prefix('events')->group(function () {
+    Route::get('/{event}/register', [EventRegistrationController::class, 'showRegistrationForm'])
+        ->name('event.registration.form');
+    Route::post('/{event}/register', [EventRegistrationController::class, 'processRegistration'])
+        ->name('event.registration.process');
+    Route::get('/registration/success/{registration}', [EventRegistrationController::class, 'showSuccess'])
+        ->name('event.registration.success');
+    Route::post('/{event}/register/retry', [EventRegistrationController::class, 'retryPayment'])
+        ->name('event.registration.retry');
 });
 
-// User-facing programs list (no admin controls) - MOVE THIS OUTSIDE
+// Event Payment Endpoints
+Route::post('/event-payment/initiate', [EventPaymentController::class, 'initiatePayment'])->name('event.payment.initiate');
+Route::get('/event-payment/status', [EventPaymentController::class, 'checkPaymentStatus'])->name('event.payment.status');
+Route::post('/event-payment/query', [EventPaymentController::class, 'stkQuery'])->name('event.payment.query');
+Route::post('/event/payment/confirm', [EventPaymentController::class, 'confirmPayment'])->name('event.payment.confirm');
+
+// Program List (Public)
 Route::get('/programs-list', [ProgramController::class, 'userList'])->name('programs.list');
 
-// Program Registration Routes - Accessible to all
+// Program Registration (Accessible to Authenticated Users)
 Route::prefix('programs')->group(function () {
-
     Route::get('/{program}/register', [ProgramRegistrationController::class, 'showRegistrationForm'])
         ->name('program.registration.form');
-
     Route::post('/{program}/register', [ProgramRegistrationController::class, 'processRegistration'])
         ->name('program.registration.process');
 });
 
-// Program payment routes
+// Program Payment Endpoints
 Route::post('/program-payment/initiate', [ProgramPaymentController::class, 'initiatePayment'])->name('program.payment.initiate');
 Route::get('/program-payment/status', [ProgramPaymentController::class, 'checkPaymentStatus'])->name('program.payment.status');
 Route::post('/program-payment/query', [ProgramPaymentController::class, 'stkQuery'])->name('program.payment.query');
 
-// Invitations Management Routes
+// Donations (Public Form)
+Route::prefix('donations')->group(function () {
+    Route::get('/', [DonationController::class, 'showDonationForm'])->name('donations.form');
+    Route::post('/initiate', [DonationController::class, 'initiateDonation'])->name('donations.initiate');
+    Route::get('/status', [DonationController::class, 'checkDonationStatus'])->name('donations.status');
+    Route::post('/query', [DonationController::class, 'stkQuery'])->name('donations.query');
+    Route::any('/callback', [DonationController::class, 'handleCallback'])->name('donations.callback');
+});
+
+// ============== ADMIN ROUTES ==============
+Route::prefix('admin/donations')->middleware(['auth'])->group(function () {
+    Route::get('/', [AdminDonationController::class, 'index'])->name('admin.donations.index');
+    Route::get('/financial-report', [AdminDonationController::class, 'financialReport'])->name('admin.donations.financial-report');
+    Route::get('/export-financial-report', [AdminDonationController::class, 'exportFinancialReport'])->name('admin.donations.export-financial-report');
+    Route::get('/{donation}', [AdminDonationController::class, 'show'])->name('admin.donations.show');
+});
+
 Route::prefix('admin/invitations')->middleware(['auth'])->group(function () {
     Route::get('/', [InvitationController::class, 'index'])->name('invitations.index');
     Route::get('/create', [InvitationController::class, 'create'])->name('invitations.create');
@@ -143,100 +214,10 @@ Route::prefix('admin/invitations')->middleware(['auth'])->group(function () {
     Route::post('/{registration}/mark-attendance', [InvitationController::class, 'markAttendance'])->name('invitations.mark.attendance');
 });
 
-// User Invitations Route
-Route::middleware(['auth', 'verified'])->get('/my-invitations', [App\Http\Controllers\UserController::class, 'myInvitations'])->name('user.invitations');
-
-// Donation Routes
-Route::prefix('donations')->group(function () {
-    Route::get('/', [DonationController::class, 'showDonationForm'])->name('donations.form');
-    Route::post('/initiate', [DonationController::class, 'initiateDonation'])->name('donations.initiate');
-    Route::get('/status', [DonationController::class, 'checkDonationStatus'])->name('donations.status');
-    Route::post('/query', [DonationController::class, 'stkQuery'])->name('donations.query');
-    Route::any('/callback', [DonationController::class, 'handleCallback'])->name('donations.callback');
-});
-
-// Admin Donation Routes
-Route::prefix('admin/donations')->middleware(['auth'])->group(function () {
-    Route::get('/', [AdminDonationController::class, 'index'])->name('admin.donations.index');
-    Route::get('/financial-report', [AdminDonationController::class, 'financialReport'])->name('admin.donations.financial-report');
-    Route::get('/export-financial-report', [AdminDonationController::class, 'exportFinancialReport'])->name('admin.donations.export-financial-report');
-    Route::get('/{donation}', [AdminDonationController::class, 'show'])->name('admin.donations.show');
-});
-
-// Gallery Routes
-Route::middleware(['auth'])->group(function () {
-    Route::resource('gallery', GalleryController::class);
-    Route::post('/gallery/{gallery}/toggle-status', [GalleryController::class, 'toggleStatus'])->name('gallery.toggle-status');
-});
-
+// ============== MISC ROUTES ==============
 Route::post('/contact', [ContactController::class, 'submit'])->name('contact.submit');
 
-// In web.php - Update the admin dashboard route
-Route::get('/admin/dashboard', [DashboardController::class, 'adminDashboard'])->middleware(['auth'])->name('admin.dashboard');
-
-// Dashboard
-Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
-
-// Profile Routes
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-
-    // Separate profile update routes
-    Route::put('/profile/name', [ProfileController::class, 'updateName'])->name('profile.name.update');
-    Route::put('/profile/email', [ProfileController::class, 'updateEmail'])->name('profile.email.update');
-    Route::put('/profile/phone', [ProfileController::class, 'updatePhone'])->name('profile.phone.update');
-    Route::put('/profile/picture', [ProfileController::class, 'updateProfilePicture'])->name('profile.picture.update');
-    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-
-
-
-// Membership Card Routes
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/membership-card/create', [MembershipCardController::class, 'create'])->name('membership-card.create');
-    Route::post('/membership-card/store', [MembershipCardController::class, 'store'])->name('membership-card.store');
-    Route::get('/membership-card', [MembershipCardController::class, 'show'])->name('membership-card.show');
-    Route::get('/membership-card/download', [MembershipCardController::class, 'downloadPdf'])->name('membership-card.download');
-    Route::get('/membership-card/print', [MembershipCardController::class, 'print'])->name('membership-card.print');
-    Route::get('/membership-card/export/{type}', [MembershipCardController::class, 'export'])->name('membership-card.export');
-});
-
-
-
-Route::get('/payment/{user}/create', [PaymentController::class, 'create'])->name('payment.create');
-Route::get('/payment/success', [PaymentController::class, 'success'])->name('payment.success');
-Route::get('/payment/processing', [PaymentController::class, 'processing'])->name('payment.processing');
-
-Route::get('/v1/status', [MpesaSTKPUSHController::class, 'checkStatus'])->name('mpesa.status');
-
-// M-Pesa STK Push routes
-Route::post('/v1/mpesa/stk/push', [MpesaSTKPUSHController::class, 'STKPush'])->name('mpesa.stk.push');
-Route::post('/v1/mpesa/stk/query', [MpesaSTKPUSHController::class, 'stkQuery'])->name('mpesa.stk.query');
-
-// REMOVED CONFLICTING ROUTE (Original line 186)
-// Route::post('v1/confirm', [MpesaSTKPUSHController::class, 'STKConfirm'])->name('mpesa.confirm');
-
-// M-Pesa webhook routes (publicly accessible) - NO MIDDLEWARE
-Route::any('/webhook/mpesa/confirm', [MpesaSTKPUSHController::class, 'STKConfirm'])->name('mpesa.confirm');
-Route::any('/webhook/payment/validation', [PaymentController::class, 'validateTransaction'])
-    ->name('webhook.payment.validation');
-Route::any('/webhook/payment/confirmation', [PaymentController::class, 'confirmTransaction'])
-    ->name('webhook.payment.confirmation');
-
-
-
-// Test route
-Route::get('/webhook/test', function () {
-    return response()->json([
-        'status' => 'online',
-        'message' => 'Webhook is accessible',
-        'timestamp' => now()
-    ]);
-});
-
-// DEBUG ROUTES
+// ============== DEBUG ROUTES ==============
 Route::get('/debug/auth', function () {
     return response()->json([
         'authenticated' => Auth::check(),
@@ -246,8 +227,7 @@ Route::get('/debug/auth', function () {
             'name' => Auth::user()->name,
             'is_active' => Auth::user()->is_active
         ] : null,
-        'session_id' => session()->getId(),
-        'session_data' => session()->all()
+        'session_id' => session()->getId()
     ]);
 });
 
@@ -255,7 +235,6 @@ Route::get('/debug/test-redirect/{id}', function ($id) {
     return redirect()->route('payment.create', ['user' => $id]);
 });
 
-// Also add a direct test payment route
 Route::get('/test-payment/{id}', function ($id) {
     $user = \App\Models\User::find($id);
     if (!$user) {

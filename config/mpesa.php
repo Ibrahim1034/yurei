@@ -75,7 +75,11 @@ return [
         'c2b_confirmation_url' => env('MPESA_C2B_CONFIRMATION_URL'),
         'b2c_result_url' => env('MPESA_B2C_RESULT_URL'),
         'b2c_timeout_url' => env('MPESA_B2C_TIMEOUT_URL'),
-        'callback_url' => env('MPESA_CALLBACK_URL'),
+
+        // FIXED: Updated to point to the specific route defined in web.php
+        // Defaults to the Render URL if the .env variable is missing
+        'callback_url' => env('MPESA_CALLBACK_URL', 'https://yurei-ytqw.onrender.com/v1/mpesa/confirm'),
+
         'status_result_url' => env('MPESA_STATUS_RESULT_URL'),
         'status_timeout_url' => env('MPESA_STATUS_TIMEOUT_URL'),
         'balance_result_url' => env('MPESA_BALANCE_RESULT_URL'),

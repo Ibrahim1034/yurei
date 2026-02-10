@@ -194,7 +194,7 @@
                                     </button>
                                 </div>
                             </div>
--
+
                             <!-- Step 4: Password -->
                             <div class="step-content" data-step="4">
                                 <h5 class="text-center mb-4">Create Password</h5>
@@ -541,6 +541,7 @@
             /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
     }
 
+    // UPDATED FUNCTION: Includes loading state and delay
     function validateAndSubmit() {
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('password_confirmation').value;
@@ -548,17 +549,32 @@
         // Validate password complexity
         if (!isPasswordValid()) {
             alert('Please ensure your password meets all the requirements:\n\n• At least 8 characters\n• One uppercase letter\n• One lowercase letter\n• One number\n• One special character');
-            return;
+            return false;
         }
         
         // Validate password match
         if (password !== confirmPassword) {
             alert('Passwords do not match. Please confirm your password.');
-            return;
+            return false;
         }
         
-        // If all validations pass, submit the form
-        document.getElementById('registrationForm').submit();
+        // Show loading state
+        const submitBtn = document.getElementById('completeRegistrationBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        submitBtn.disabled = true;
+        
+        // Disable the form to prevent double submission
+        document.getElementById('registrationForm').querySelectorAll('input, select, button').forEach(element => {
+            element.disabled = true;
+        });
+        
+        // Add a small delay to show the loading state
+        setTimeout(() => {
+            document.getElementById('registrationForm').submit();
+        }, 500);
+        
+        return true;
     }
 
     // Update the existing togglePassword function to also trigger validation
@@ -584,7 +600,6 @@
         }
     }
     // Complete Kenya locations data
-        // Complete Kenya locations data - Updated structure
     const kenyaLocations = {
         'MOMBASA': {
             'CHANGAMWE': ['AIRPORT', 'CHAANI', 'CHANGAMWE', 'KIPEVU', 'PORT REITZ'],
@@ -1150,20 +1165,5 @@
         // Set default user type
         document.querySelector('.member-card').classList.add('selected');
     });
-
-    function togglePassword(fieldId) {
-        const field = document.getElementById(fieldId);
-        const icon = field.nextElementSibling.querySelector('i');
-        
-        if (field.type === 'password') {
-            field.type = 'text';
-            icon.classList.remove('bi-eye');
-            icon.classList.add('bi-eye-slash');
-        } else {
-            field.type = 'password';
-            icon.classList.remove('bi-eye-slash');
-            icon.classList.add('bi-eye');
-        }
-    }
 </script>
 </x-guest-layout>

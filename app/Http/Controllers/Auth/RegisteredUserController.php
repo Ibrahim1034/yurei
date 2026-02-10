@@ -85,24 +85,39 @@ class RegisteredUserController extends Controller
         // Generate membership number
         $user->generateMembershipNumber();
 
-        \Log::info('🔵 USER CREATED', [
+        Log::info('🔵 USER CREATED', [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'is_active' => $user->is_active
+            'is_active' => $user->is_active,
+            'user_type' => $user->user_type,
+            'membership_number' => $user->membership_number
         ]);
 
         event(new Registered($user));
-        Auth::login($user);
 
-        // DEBUG: Log authentication status
-        \Log::info('🟡 AUTH STATUS', [
+        // Log the user in and regenerate session for security
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        // Store user ID in session explicitly to prevent loss
+        session(['registration_user_id' => $user->id]);
+        session(['registration_complete' => true]);
+
+        Log::info('🟡 USER LOGGED IN AFTER REGISTRATION', [
             'check' => Auth::check(),
             'id' => Auth::id(),
-            'user' => Auth::user()->id ?? 'null'
+            'user' => Auth::user()->id ?? 'null',
+            'session_id' => session()->getId(),
+            'session_registration_user_id' => session('registration_user_id')
         ]);
 
-        // TRY ALTERNATIVE REDIRECT
-        return redirect()->to('/payment/' . $user->id . '/create');
+        // Use named route for clean redirect
+        Log::info('🔵 REDIRECTING TO PAYMENT', [
+            'user_id' => $user->id,
+            'route' => route('payment.create', $user->id)
+        ]);
+
+        return redirect()->route('payment.create', $user->id);
     }
 }
