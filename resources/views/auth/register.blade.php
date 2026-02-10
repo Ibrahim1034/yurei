@@ -58,7 +58,6 @@
                                                 <div class="features">
                                                     <small><i class="bi bi-check-circle text-success"></i> YUREI Programs Access</small><br>
                                                     <small><i class="bi bi-check-circle text-success"></i> Membership Card</small><br>
-                                                    <!-- <small><i class="bi bi-check-circle text-success"></i> Full access</small> -->
                                                 </div>
                                             </div>
                                         </div>
@@ -72,7 +71,6 @@
                                                 <div class="features">
                                                    <small><i class="bi bi-check-circle text-success"></i> YUREI Programs Access</small><br>
                                                     <small><i class="bi bi-check-circle text-success"></i> Membership Card</small><br>
-                                                    <!-- <small><i class="bi bi-check-circle text-success"></i> Full access</small> -->
                                                 </div>
                                             </div>
                                         </div>
@@ -106,12 +104,29 @@
                                     <x-input-error :messages="$errors->get('email')" class="mt-2" />
                                 </div>
 
-                                <!-- Phone Number -->
+                                <!-- Phone Number Field -->
                                 <div class="mb-4">
                                     <label for="phone_number" class="form-label fs-5">Phone Number</label>
-                                    <input id="phone_number" class="form-control form-control-lg" type="text" name="phone_number" :value="old('phone_number')" required autocomplete="tel" placeholder="2547XXXXXXXX" />
+                                    <input id="phone_number" 
+                                           class="form-control form-control-lg" 
+                                           type="text" 
+                                           name="phone_number" 
+                                           :value="old('phone_number')" 
+                                           required 
+                                           autocomplete="tel" 
+                                           placeholder="2547XXXXXXXX"
+                                           onblur="checkPhoneNumberAvailability(this.value)"
+                                           onkeyup="validatePhoneFormat(this)" />
+                                    
+                                    <!-- Error displays will be added dynamically by JavaScript -->
+                                    
+                                    @error('phone_number')
+                                        <div class="text-danger mt-2">
+                                            <strong>{{ $message }}</strong>
+                                        </div>
+                                    @enderror
+                                    
                                     <div class="form-text fs-6">Format: 2547XXXXXXXX (e.g., 254712345678)</div>
-                                    <x-input-error :messages="$errors->get('phone_number')" class="mt-2" />
                                 </div>
 
                                 <!-- Profile Picture -->
@@ -462,6 +477,24 @@
             font-weight: 500;
         }
         
+        /* New Styles for Phone Validation */
+        .spin {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .is-valid {
+            border-color: #198754 !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+        }
+        .is-invalid {
+            border-color: #dc3545 !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+        }
+        
         @media (max-width: 768px) {
             .auth-card {
                 margin: 20px;
@@ -482,6 +515,86 @@
     </style>
 
    <script>
+    // ============== PHONE NUMBER VALIDATION FUNCTIONS ==============
+
+    // Function to check phone number availability via AJAX
+    function checkPhoneNumberAvailability(phoneNumber) {
+        if (!phoneNumber || phoneNumber.length < 12) return;
+        
+        // Only check if format is valid (254XXXXXXXXX)
+        const phoneRegex = /^254[0-9]{9}$/;
+        if (!phoneRegex.test(phoneNumber)) return;
+        
+        // Show checking indicator
+        const phoneField = document.getElementById('phone_number');
+        const checkingIndicator = document.getElementById('phone-checking') || createCheckingIndicator();
+        
+        checkingIndicator.innerHTML = '<span class="text-info"><i class="bi bi-arrow-repeat spin"></i> Checking availability...</span>';
+        checkingIndicator.style.display = 'block';
+        
+        // Make AJAX request to check phone number
+        fetch('{{ route("check.phone.availability") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ phone_number: phoneNumber })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.available) {
+                checkingIndicator.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Phone number available</span>';
+                phoneField.classList.remove('is-invalid');
+                phoneField.classList.add('is-valid');
+            } else {
+                checkingIndicator.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${data.message}</span>`;
+                phoneField.classList.remove('is-valid');
+                phoneField.classList.add('is-invalid');
+            }
+        })
+        .catch(error => {
+            console.error('Error checking phone:', error);
+            checkingIndicator.style.display = 'none';
+        });
+        
+        function createCheckingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'phone-checking';
+            indicator.className = 'form-text mt-1 small';
+            phoneField.parentNode.appendChild(indicator);
+            return indicator;
+        }
+    }
+
+    // Function to validate phone format as user types
+    function validatePhoneFormat(input) {
+        const phoneRegex = /^254[0-9]{9}$/;
+        const errorDiv = document.getElementById('phone-format-error') || createFormatError();
+        
+        if (input.value.length >= 12 && !phoneRegex.test(input.value)) {
+            input.classList.add('is-invalid');
+            errorDiv.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> Invalid format. Use: 2547XXXXXXXX</span>';
+            errorDiv.style.display = 'block';
+        } else {
+            input.classList.remove('is-invalid');
+            errorDiv.style.display = 'none';
+            
+            // Auto-check when format is valid
+            if (phoneRegex.test(input.value)) {
+                checkPhoneNumberAvailability(input.value);
+            }
+        }
+        
+        function createFormatError() {
+            const div = document.createElement('div');
+            div.id = 'phone-format-error';
+            div.className = 'form-text mt-1 small';
+            document.getElementById('phone_number').parentNode.appendChild(div);
+            return div;
+        }
+    }
+
     // Password validation functions
     function validatePassword() {
         const password = document.getElementById('password').value;
@@ -541,18 +654,35 @@
             /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
     }
 
-    // UPDATED FUNCTION: Preserves CSRF token and no delay
+    // Update existing validateAndSubmit function - ADD THIS VALIDATION
     function validateAndSubmit() {
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('password_confirmation').value;
+        const phoneNumber = document.getElementById('phone_number').value;
+        const phoneField = document.getElementById('phone_number');
         
-        // Validate password complexity
+        // 1. Validate phone number format
+        const phoneRegex = /^254[0-9]{9}$/;
+        if (!phoneRegex.test(phoneNumber)) {
+            alert('Please enter a valid phone number in format: 2547XXXXXXXX (e.g., 254712345678)');
+            phoneField.focus();
+            return false;
+        }
+        
+        // 2. Check if phone field has invalid class (from AJAX duplicate check)
+        if (phoneField.classList.contains('is-invalid')) {
+            alert('This phone number is already registered. Please use a different number.');
+            phoneField.focus();
+            return false;
+        }
+        
+        // 3. Original password validations (keep existing)
         if (!isPasswordValid()) {
             alert('Please ensure your password meets all the requirements:\n\n• At least 8 characters\n• One uppercase letter\n• One lowercase letter\n• One number\n• One special character');
             return false;
         }
         
-        // Validate password match
+        // 4. Original password match validation (keep existing)
         if (password !== confirmPassword) {
             alert('Passwords do not match. Please confirm your password.');
             return false;
@@ -563,9 +693,6 @@
         const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
         submitBtn.disabled = true;
-        
-        // ✅ CRITICAL: Only disable the submit button, NOT other form elements
-        // This preserves the CSRF token (which is a hidden input)
         
         // Submit the form immediately
         document.getElementById('registrationForm').submit();
@@ -595,6 +722,7 @@
             validatePasswordMatch();
         }
     }
+
     // Complete Kenya locations data
     const kenyaLocations = {
         'MOMBASA': {
@@ -616,7 +744,7 @@
             'KALOLENI': ['KALOLENI', 'KAYAFUNGO', 'MARIAKANI', 'MWANAMWINGA'],
             'KILIFI NORTH': ['DABASO', 'KIBARANI', 'MATSANGONI', 'MNARANI', 'SOKONI', 'TEZO', 'WATAMU'],
             'KILIFI SOUTH': ['CHASIMBA', 'JUNJU', 'MTEPENI', 'MWARAKAYA', 'SHIMO LA TEWA'],
-            'MAGARINI': ['ADU', 'GARASHI', 'GONGONI', 'MAGARINI', 'MARAFA', 'SABAKI'],
+            'MAGARINI': ['ADU', 'GARASHI', 'GONGONI', 'MAGARINI', 'MARAFAS', 'SABAKI'],
             'MALINDI': ['GANDA', 'JILORE', 'KAKUYUNI', 'MALINDI TOWN', 'SHELLA'],
             'RABAI': ['KAMBE/RIBE', 'MWAWESA', 'RABAI/KISURUTINI', 'RURUMA']
         },
@@ -709,7 +837,7 @@
             'MATUNGULU': ['KYELENI', 'MATUNGULU EAST', 'MATUNGULU NORTH', 'MATUNGULU WEST', 'TALA'],
             'MAVOKO': ['ATHI RIVER', 'KINANIE', 'MUTHWANI', 'SYOKIMAU/MULOLONGO'],
             'MWALA': ['KIBAUNI', 'MAKUTANO/ MWALA', 'MASII', 'MBIUNI', 'MUTHETHENI', 'WAMUNYU'],
-            'YATTA': ['IKOMBE', 'KATANGI', 'KITHIMANI', 'MATUU', 'NDALANI']
+            'YATTA': ['IKOMBE', 'KATANGI', 'KITHUMANI', 'MATUU', 'NDALANI']
         },
         'MAKUENI': {
             'KAITI': ['ILIMA', 'KEE', 'KILUNGU', 'UKIA'],
@@ -735,9 +863,9 @@
         },
         'KIRINYAGA': {
             'GICHUGU': ['BARAGWI', 'KABARE', 'KARUMANDI', 'NGARIAMA', 'NJUKIINI'],
-            'KIRINYAGA CENTRAL': ['INOI', 'KANYEKI-INI', 'KERUGOYA', 'MUTIRA'],
+            'KIRINYAGA CENTRAL': ['INOI', 'KANYENYAINI', 'KERUGOYA', 'MUTIRA'],
             'MWEA': ['GATHIGIRIRI', 'KANGAI', 'MURINDUKO', 'MUTITHI', 'NYANGATI', 'TEBERE', 'THIBA', 'WAMUMU'],
-            'NDIA': ['KARITI', 'KIINE', 'MUKURE']
+            'NDIA': ['KARITI', 'KIINE', 'MUKURU']
         },
         'MURANG\'A': {
             'GATANGA': ['GATANGA', 'ITHANGA', 'KAKUZI/MITUBIRI', 'KARIARA', 'KIHUMBU-INI', 'MUGUMO-INI'],
@@ -785,7 +913,7 @@
             'CHERANGANY': ['CHEPSIRO/KIPTOROR', 'CHERANGANY/SUWERWA', 'KAPLAMAI', 'MAKUTANO', 'MOTOSIET', 'SINYERERE', 'SITATUNGA'],
             'ENDEBESS': ['CHEPCHOINA', 'ENDEBESS', 'MATUMBEI'],
             'KIMININI': ['HOSPITAL', 'KIMININI', 'NABISWA', 'SIKHENDU', 'SIRENDE', 'WAITALUK'],
-            'KWANZA': ['BIDII', 'KAPOMBOI', 'KEIYO', 'KWANZA'],
+            'KWANZA': ['BIDII', 'KAPLAMBOI', 'KEIYO', 'KWANZA'],
             'SABOTI': ['KINYORO', 'MACHEWA', 'MATISI', 'SABOTI', 'TUWANI']
         },
         'UASIN GISHU': {
@@ -794,7 +922,7 @@
             'KESSES': ['CHEPTIRET/KIPCHAMO', 'RACECOURSE', 'TARAKWA', 'TULWET/CHUIYAT'],
             'MOIBEN': ['KARUNA/MEIBEKI', 'KIMUMU', 'MOIBEN', 'SERGOIT', 'TEMBELIO'],
             'SOY': ['KAPKURES', 'KIPSOMBA', 'KUINET/KAPSUSWA', 'MOI\'S BRIDGE', 'SEGERO/BARSOMBE', 'SOY', 'ZIWA'],
-            'TURBO': ['HURUMA', 'KAMAGUT', 'KAPSAOS', 'KIPLOMBE', 'NGENYILEL', 'TAPSAGOI']
+            'TURBO': ['HURUMA', 'KAMAGUT', 'KAPSAS', 'KIPLOMBE', 'NGENYILEL', 'TAPSAGOI']
         },
         'ELGEYO MARAKWET': {
             'KEIYO NORTH': ['EMSOO', 'KAMARINY', 'KAPCHEMUTWA', 'TAMBACH'],
@@ -846,13 +974,13 @@
         },
         'KAJIADO': {
             'KAJIADO CENTRAL': ['DALALEKUTUK', 'ILDAMAT', 'MATAPATO NORTH', 'MATAPATO SOUTH', 'PURKO'],
-            'KAJIADO EAST': ['IMARORO', 'KAPUTIEI NORTH', 'KENYAWA-POKA', 'KITENGELA', 'OLOOSIRKON/SHOLINKE'],
+            'KAJIADO EAST': ['IMARORO', 'KAPKUTIEI NORTH', 'KENYAWA-POKA', 'KITENGELA', 'OLOOSIRKON/SHOLINKE'],
             'KAJIADO NORTH': ['NGONG', 'NKAIMURUNYA', 'OLKERI', 'OLOOLUA', 'ONGATA RONGAI'],
             'KAJIADO SOUTH': ['ENTONET/LENKISIM', 'KIMANA', 'KUKU', 'MBIRIKANI/ESELENKEI', 'ROMBO'],
-            'KAJIADO WEST': ['EWUASO OONKIDONG\'I', 'ILOODOKILANI', 'KEEKONYOKIE', 'MAGADI', 'MOSIRO']
+            'KAJIADO WEST': ['EWUASO OONKIDONG\'I', 'ILDAMAT', 'KEEKONYOKIE', 'MAGADI', 'MOSIRO']
         },
         'KERICHO': {
-            'AINAMOI': ['AINAMOI', 'KAPKUGERWET', 'KAPSAOS', 'KAPSOIT', 'KIPCHEBOR', 'KIPCHIMCHIM'],
+            'AINAMOI': ['AINAMOI', 'KAPKUGERWET', 'KAPSAS', 'KAPSOIT', 'KIPCHEBOR', 'KIPCHIMCHIM'],
             'BELGUT': ['CHAIK', 'CHEPTORORIET/SERETUT', 'KABIANGA', 'KAPSUSER', 'WALDAI'],
             'BURETI': ['CHEBOIN', 'CHEMOSOT', 'CHEPLANGET', 'KAPKATET', 'KISIARA', 'LITEIN', 'TEBESONIK'],
             'KIPKELION EAST': ['CHEPSEON', 'KEDOWA/KIMUGUL', 'LONDIANI', 'TENDENO/SORGET'],

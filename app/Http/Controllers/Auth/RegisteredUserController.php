@@ -25,6 +25,51 @@ class RegisteredUserController extends Controller
     }
 
     /**
+     * AJAX endpoint to check phone number availability
+     */
+    public function checkPhoneAvailability(Request $request)
+    {
+        try {
+            $request->validate([
+                'phone_number' => 'required|string|regex:/^254[0-9]{9}$/'
+            ]);
+
+            $phoneNumber = $request->phone_number;
+
+            // Check if phone number already exists
+            $existingUser = User::where('phone_number', $phoneNumber)->first();
+
+            if ($existingUser) {
+                Log::info('📱 PHONE NUMBER DUPLICATE CHECK - FOUND', [
+                    'phone' => $phoneNumber,
+                    'existing_user_id' => $existingUser->id,
+                    'existing_email' => $existingUser->email
+                ]);
+
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This phone number is already registered. Please use a different number.'
+                ]);
+            }
+
+            return response()->json([
+                'available' => true,
+                'message' => 'Phone number is available'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ PHONE AVAILABILITY CHECK ERROR', [
+                'error' => $e->getMessage(),
+                'phone' => $request->phone_number ?? 'none'
+            ]);
+
+            return response()->json([
+                'available' => false,
+                'message' => 'Error checking phone number. Please try again.'
+            ], 500);
+        }
+    }
+
+    /**
      * Handle an incoming registration request.
      *
      * @throws \Illuminate\Validation\ValidationException

@@ -55,6 +55,10 @@ Route::middleware('guest')->group(function () {
 Route::post('login', [AuthenticatedSessionController::class, 'store']);
 Route::post('register', [RegisteredUserController::class, 'store']); // <--- CRITICAL FIX
 
+// Add this with your other routes
+Route::post('/check-phone-availability', [RegisteredUserController::class, 'checkPhoneAvailability'])
+    ->name('check.phone.availability');
+
 Route::post('forgot-password', [\App\Http\Controllers\Auth\PasswordResetLinkController::class, 'store'])
     ->name('password.email');
 Route::post('reset-password', [\App\Http\Controllers\Auth\NewPasswordController::class, 'store'])
