@@ -1667,7 +1667,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark header fixed-top">
       <div class="container">
         <a class="navbar-brand d-flex align-items-center" href="#hero">
-          <img src="{{ asset('storage/web_pics/yurei-036.jpeg') }}" alt="YUREI Logo" height="40" class="me-2 rounded">
+          <img src="{{asset('assets/images/yurei-036.jpeg')}}" alt="YUREI Logo" height="40" class="me-2 rounded">
           <span class="sitename fw-bold">YUREI</span>
         </a>
         
@@ -1767,7 +1767,7 @@
                   <div class="col-lg-6">
                       <div class="hero-image">
                           <img
-                              src="{{ asset('storage/web_pics/yurei-024.jpeg') }}"
+                              src="{{ asset('assets/images/yurei-024.jpeg') }}"
                               alt="Youth Empowerment"
                               loading="lazy"
                               class="img-fluid rounded shadow"
@@ -1785,7 +1785,7 @@
             <div class="col-lg-6">
               <div class="about-image">
                 <img
-                  src="{{ asset('storage/web_pics/yurei-002.jpeg') }}"
+                  src="{{ asset('assets/images/yurei-002.jpeg') }}"
                   alt="About Our Organization"
                   loading="lazy"
                   class="img-fluid rounded shadow"
@@ -2073,7 +2073,7 @@
                                                 alt="{{ $event->title }}" 
                                                 style="height: 250px; width: 100%; object-fit: cover;">
                                         @else
-                                            <img src="{{ asset('storage/web_pics/default-event.jpg') }}" 
+                                            <img src="{{ asset('assets/images/default-event.jpg') }}" 
                                                 class="img-fluid event-image" 
                                                 loading="lazy"
                                                 alt="{{ $event->title }}" 
@@ -2228,7 +2228,7 @@
                                               />
                                           @else
                                               <img
-                                                  src="{{ asset('storage/web_pics/default-document.jpg') }}"
+                                                  src="{{ asset('assets/images/default-document.jpg') }}"
                                                   class="img-fluid news-image"
                                                   loading="lazy"
                                                   alt="{{ $document->title }}"
@@ -2415,7 +2415,7 @@
                       <div class="payment-card floating-card">
                           <div class="payment-header">
                               <img
-                                  src="{{ asset('storage/web_pics/kcb.png') }}"
+                                  src="{{ asset('assets/images/kcb.png') }}"
                                   loading="lazy"
                                   alt="KCB Bank"
                                   class="bank-logo"
@@ -2446,7 +2446,7 @@
                       <div class="payment-card floating-card">
                           <div class="payment-header">
                               <img
-                                  src="{{ asset('storage/web_pics/mpesa.png') }}"
+                                  src="{{ asset('assets/images/mpesa.png') }}"
                                   loading="lazy"
                                   alt="M-PESA"
                                   class="bank-logo"
@@ -2479,7 +2479,7 @@
                       <div class="payment-card floating-card">
                           <div class="payment-header">
                               <img
-                                  src="{{ asset('storage/web_pics/vooma.png') }}"
+                                  src="{{ asset('assets/images/vooma.png') }}"
                                   loading="lazy"
                                   alt="VCOMA"
                                   class="bank-logo"
