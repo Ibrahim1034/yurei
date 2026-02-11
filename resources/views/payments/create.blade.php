@@ -1,72 +1,42 @@
 <x-guest-layout>
-    <div class="container">
+    <div class="container py-5">
         <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
-                <div class="card shadow-sm border-0">
-                    <div class="card-body p-4">
+            <div class="col-md-8 col-lg-5">
+                <div class="card shadow-lg border-0">
+                    <div class="card-body p-5">
                         <div class="text-center mb-4">
-                            <h4>Complete Your Registration</h4>
-                            <p class="text-muted">Make payment to activate your membership</p>
+                            <div class="mb-3">
+                                <i class="fas fa-shield-alt text-primary fa-3x"></i>
+                            </div>
+                            <h4 class="fw-bold">Secure Registration</h4>
+                            <p class="text-muted">Complete payment to activate your account</p>
                         </div>
 
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <h6 class="card-title">Membership Details</h6>
-                                <div class="row small mb-3">
-                                    <div class="col-4 text-muted">Name:</div>
-                                    <div class="col-8">{{ $user->name }}</div>
-                                    <div class="col-4 text-muted">Phone:</div>
-                                    <div class="col-8">{{ $user->phone_number }}</div>
-                                </div>
-
-                                <div class="alert alert-info mb-0">
-                                    <strong>Membership Fee:</strong> KES {{ $amount ?? 1 }}
-                                </div>
+                        <div class="bg-light p-3 rounded-3 mb-4">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted small">Member Name:</span>
+                                <span class="fw-bold small">{{ $user->name }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted small">Phone Number:</span>
+                                <span class="fw-bold small">{{ $user->phone_number }}</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">Total Due:</span>
+                                <span class="badge bg-primary fs-6">KES {{ number_format($amount ?? 1, 2) }}</span>
                             </div>
                         </div>
 
-                        <!-- Success Message Area -->
-                        <div id="success-message" class="alert alert-success d-none">
-                            <!-- Message will be inserted here -->
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary btn-lg shadow-sm" id="pay-button" onclick="initiateSTKPush()">
+                                <i class="fas fa-mobile-alt me-2"></i> Pay via M-Pesa
+                            </button>
                         </div>
-
-                        <!-- Payment Processing Section (Hidden by default) -->
-                        <div id="payment-processing-section" class="text-center mb-3 d-none">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Checking payment status...</span>
-                            </div>
-                            <p class="mt-2" id="status-message">Checking payment status...</p>
-                            
-                            <!-- Confirm Payment Button -->
-                            <div class="mt-3">
-                                <button type="button" class="btn btn-warning btn-sm" id="confirm-payment-btn" onclick="confirmPayment()">
-                                    <i class="fas fa-sync-alt"></i> Check Payment Status
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Error Message Area -->
-                        <div id="error-message" class="alert alert-danger d-none">
-                            <!-- Error message will be inserted here -->
-                        </div>
-
-                        @if (!session('success'))
-                            <!-- Pay Button -->
-                            <div class="d-grid">
-                                <button type="button" class="btn btn-primary btn-lg" id="pay-button" onclick="initiateSTKPush()">
-                                    Pay via M-Pesa
-                                </button>
-                            </div>
-
-                            <div class="text-center mt-3">
-                                <small class="text-muted">
-                                    You will receive an M-Pesa prompt on your phone number: {{ $user->phone_number }}
-                                </small>
-                            </div>
-                        @endif
 
                         <div class="text-center mt-4">
-                            <a href="{{ route('login') }}" class="text-decoration-none">
+                            <p class="small text-muted mb-1">Having trouble?</p>
+                            <a href="{{ route('login') }}" class="text-decoration-none small fw-bold">
                                 Already paid? Login here
                             </a>
                         </div>
@@ -76,362 +46,116 @@
         </div>
     </div>
 
-<script>
-    let currentCheckoutId = null;
-    let isProcessing = false;
-    let statusCheckInterval = null;
-    let paymentAttempts = 0;
-    const MAX_PAYMENT_ATTEMPTS = 3;
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-    // FIXED: Added async/await and proper promise handling
-    async function initiateSTKPush() {
-        if (isProcessing) return;
-        
-        paymentAttempts++;
-        if (paymentAttempts > MAX_PAYMENT_ATTEMPTS) {
-            showMessage('error', 'Too many payment attempts. Please refresh the page and try again.');
-            return;
-        }
-        
-        isProcessing = true;
-        const button = document.getElementById('pay-button');
-        const originalText = button.innerHTML;
-        
-        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Initiating...';
-        button.disabled = true;
+    <script>
+        let currentCheckoutId = null;
+        let isProcessing = false;
+        let statusCheckInterval = null;
 
-        // Hide any existing messages
-        hideAllMessages();
+        async function initiateSTKPush() {
+            if (isProcessing) return;
+            isProcessing = true;
 
-        try {
-            // FIXED: Add timeout to prevent hanging promises
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-            const response = await fetch('{{ route("mpesa.stk.push") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    'user_id': '{{ $user->id }}',
-                    'amount': '{{ $amount ?? 1 }}',
-                    'phonenumber': '{{ $user->phone_number }}'
-                }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            console.log('Response status:', response.status);
-            
-            // FIXED: Handle authentication errors
-            if (response.status === 401 || response.status === 403) {
-                window.location.href = '{{ route("login") }}';
-                return;
-            }
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('STK Push response:', data);
-            
-            if (data.success) {
-                // Show initial success message
-                showMessage('success', '✅ M-Pesa prompt sent! Please check your phone and enter your PIN to complete payment.');
-                
-                // Store checkout ID
-                currentCheckoutId = data.checkout_request_id;
-                
-                // Show processing section
-                document.getElementById('payment-processing-section').classList.remove('d-none');
-                document.getElementById('status-message').textContent = 'Waiting for payment confirmation...';
-                
-                // Hide pay button
-                button.style.display = 'none';
-                
-                // Start checking status immediately
-                startStatusChecking();
-                
-            } else {
-                showMessage('error', data.error || 'Failed to initiate payment');
-                resetButton(button, originalText);
-            }
-        } catch (error) {
-            console.error('STK Push error:', error);
-            
-            // FIXED: Better error messages
-            let errorMessage = 'Network error';
-            if (error.name === 'AbortError') {
-                errorMessage = 'Request timed out. Please try again.';
-            } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                errorMessage = 'Network connection failed. Please check your internet.';
-            } else {
-                errorMessage = error.message || 'Failed to initiate payment';
-            }
-            
-            showMessage('error', errorMessage);
-            resetButton(button, originalText);
-        }
-    }
-
-    function startStatusChecking() {
-        // Clear any existing interval
-        if (statusCheckInterval) {
-            clearInterval(statusCheckInterval);
-        }
-        
-        // Check status immediately
-        checkPaymentStatus();
-        
-        // FIXED: Reduced frequency to prevent rate limiting
-        statusCheckInterval = setInterval(checkPaymentStatus, 5000); // 5 seconds
-    }
-
-    // FIXED: Added async/await and error handling
-    async function checkPaymentStatus() {
-        if (!currentCheckoutId) return;
-        
-        console.log('Checking payment status for:', currentCheckoutId);
-        
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-
-            const response = await fetch('/v1/status?checkout_request_id=' + currentCheckoutId, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                },
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('Status check response:', data);
-            
-            if (data.success) {
-                handlePaymentStatus(data);
-            } else {
-                console.error('Status check failed:', data.error);
-                // Don't stop checking on temporary errors
-            }
-        } catch (error) {
-            console.error('Status check error:', error);
-            // Don't stop checking on network errors
-        }
-    }
-
-    function handlePaymentStatus(data) {
-        const status = data.status;
-        const resultDesc = data.result_desc || '';
-        
-        switch(status) {
-            case 'completed':
-                // Payment successful - show thank you message and redirect
-                showMessage('success', '🎉 Thank you for completing your registration! Your account is now active. Redirecting to login...');
-                clearInterval(statusCheckInterval);
-                
-                // Update status message
-                document.getElementById('status-message').textContent = 'Payment completed successfully!';
-                document.getElementById('confirm-payment-btn').style.display = 'none';
-                
-                // Redirect to login after 2 seconds
-                setTimeout(() => {
-                    window.location.href = '{{ route("login") }}';
-                }, 2000);
-                break;
-                
-            case 'failed':
-                // Payment failed
-                let errorMessage = 'Payment Failed';
-                if (resultDesc.toLowerCase().includes('cancelled')) {
-                    errorMessage = 'Payment was cancelled';
-                } else if (resultDesc.toLowerCase().includes('timeout') || resultDesc.toLowerCase().includes('timed out')) {
-                    errorMessage = 'Payment timed out';
-                } else if (resultDesc.toLowerCase().includes('insufficient')) {
-                    errorMessage = 'Insufficient funds';
+            // 1. Show Loading State
+            Swal.fire({
+                title: 'Requesting Payment...',
+                text: 'Please wait while we trigger the M-Pesa prompt on your phone.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
                 }
-                
-                showMessage('error', errorMessage);
-                clearInterval(statusCheckInterval);
-                
-                // Show retry option
-                const retryBtn = document.createElement('button');
-                retryBtn.className = 'btn btn-primary btn-sm mt-2';
-                retryBtn.textContent = 'Try Again';
-                retryBtn.onclick = () => location.reload();
-                
-                document.getElementById('error-message').appendChild(retryBtn);
-                break;
-                
-            case 'pending':
-                // Still waiting - update status message
-                const elapsed = Math.floor((Date.now() - window.paymentStartTime) / 1000);
-                document.getElementById('status-message').textContent = `Waiting for payment confirmation... (${elapsed}s)`;
-                break;
-                
-            default:
-                // Unknown status - keep checking
-                document.getElementById('status-message').textContent = 'Processing payment...';
-                break;
-        }
-    }
-
-    // FIXED: Added async/await
-    async function confirmPayment() {
-        if (!currentCheckoutId) {
-            showMessage('error', 'No payment session found');
-            return;
-        }
-
-        const button = document.getElementById('confirm-payment-btn');
-        const originalText = button.innerHTML;
-        
-        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Checking...';
-        button.disabled = true;
-
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-            const response = await fetch('{{ route("mpesa.stk.query") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    'checkout_request_id': currentCheckoutId
-                }),
-                signal: controller.signal
             });
 
-            clearTimeout(timeoutId);
+            try {
+                const response = await fetch('{{ route("mpesa.stk.push") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        'user_id': '{{ $user->id }}',
+                        'amount': '{{ $amount ?? 1 }}',
+                        'phonenumber': '{{ $user->phone_number }}'
+                    })
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('STK Query response:', data);
-            
-            if (data.success) {
-                const result = data.result;
-                
-                if (result.ResultCode == '0') {
-                    showMessage('success', '🎉 Thank you for completing your registration! Your account is now active.');
-                    clearInterval(statusCheckInterval);
-                    setTimeout(() => {
-                        window.location.href = '{{ route("login") }}';
-                    }, 2000);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentCheckoutId = data.checkout_request_id;
+                    
+                    // 2. Update UI to "Waiting for User PIN"
+                    Swal.fire({
+                        title: 'Prompt Sent!',
+                        html: `Please check your phone (<strong>{{ $user->phone_number }}</strong>) and enter your M-Pesa PIN to authorize.`,
+                        icon: 'info',
+                        allowOutsideClick: false,
+                        showConfirmButton: false,
+                        footer: '<div class="spinner-border spinner-border-sm text-primary me-2"></div> Listening for payment...'
+                    });
+
+                    startStatusChecking();
                 } else {
-                    const resultDesc = result.ResultDesc || '';
-                    let errorMessage = 'Payment Failed';
-                    if (resultDesc.toLowerCase().includes('cancelled')) {
-                        errorMessage = 'Payment was cancelled';
-                    } else if (resultDesc.toLowerCase().includes('timeout') || resultDesc.toLowerCase().includes('timed out')) {
-                        errorMessage = 'Payment timed out';
-                    }
-                    showMessage('error', errorMessage);
-                    
-                    // Add retry button
-                    const retryBtn = document.createElement('button');
-                    retryBtn.className = 'btn btn-primary btn-sm mt-2';
-                    retryBtn.textContent = 'Try Again';
-                    retryBtn.onclick = () => location.reload();
-                    
-                    document.getElementById('error-message').appendChild(retryBtn);
+                    isProcessing = false;
+                    Swal.fire('Failed', data.error || 'Could not initiate STK push.', 'error');
                 }
-            } else {
-                showMessage('error', data.error || 'Failed to check payment status');
-                resetConfirmButton(button, originalText);
+            } catch (error) {
+                isProcessing = false;
+                Swal.fire('Connection Error', 'Unable to reach payment gateway. Check your internet.', 'error');
             }
-        } catch (error) {
-            console.error('STK Query error:', error);
-            
-            let errorMessage = 'Network error checking payment';
-            if (error.name === 'AbortError') {
-                errorMessage = 'Request timed out';
+        }
+
+        function startStatusChecking() {
+            if (statusCheckInterval) clearInterval(statusCheckInterval);
+            // Check every 4 seconds for the callback update in your DB
+            statusCheckInterval = setInterval(checkPaymentStatus, 4000);
+        }
+
+        async function checkPaymentStatus() {
+            if (!currentCheckoutId) return;
+
+            try {
+                // Ensure this route returns the payment status from your 'mpesa_transactions' table
+                const response = await fetch(`/v1/status?checkout_request_id=${currentCheckoutId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.status === 'completed') {
+                        clearInterval(statusCheckInterval);
+                        
+                        Swal.fire({
+                            title: 'Success!',
+                            text: 'Payment received. Your account is now active!',
+                            icon: 'success',
+                            confirmButtonText: 'Go to Dashboard',
+                            allowOutsideClick: false
+                        }).then((result) => {
+                            window.location.href = '{{ route("login") }}';
+                        });
+
+                    } else if (data.status === 'failed') {
+                        clearInterval(statusCheckInterval);
+                        isProcessing = false;
+                        
+                        Swal.fire({
+                            title: 'Payment Failed',
+                            text: data.result_desc || 'The transaction was cancelled or declined.',
+                            icon: 'error',
+                            confirmButtonText: 'Try Again'
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
             }
-            
-            showMessage('error', errorMessage);
-            resetConfirmButton(button, originalText);
         }
-    }
 
-    function showMessage(type, message) {
-        // Hide all messages first
-        hideAllMessages();
-        
-        let messageDiv;
-        if (type === 'success') {
-            messageDiv = document.getElementById('success-message');
-        } else {
-            messageDiv = document.getElementById('error-message');
-        }
-        
-        messageDiv.innerHTML = message + '<button type="button" class="btn-close float-end" data-bs-dismiss="alert"></button>';
-        messageDiv.classList.remove('d-none');
-        
-        // Auto-hide success messages after 5 seconds
-        if (type === 'success') {
-            setTimeout(() => {
-                messageDiv.classList.add('d-none');
-            }, 5000);
-        }
-    }
-
-    function hideAllMessages() {
-        document.getElementById('success-message').classList.add('d-none');
-        document.getElementById('error-message').classList.add('d-none');
-    }
-
-    function resetButton(button, originalText) {
-        isProcessing = false;
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }
-
-    function resetConfirmButton(button, originalText) {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    }
-
-    // Track payment start time
-    window.paymentStartTime = Date.now();
-
-    // Clean up interval when leaving page
-    window.addEventListener('beforeunload', function() {
-        if (statusCheckInterval) {
-            clearInterval(statusCheckInterval);
-        }
-    });
-
-    // FIXED: Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Payment page loaded');
-        
-        // Check if there's already a pending payment
-        const urlParams = new URLSearchParams(window.location.search);
-        const checkoutId = urlParams.get('checkout_request_id');
-        
-        if (checkoutId) {
-            currentCheckoutId = checkoutId;
-            document.getElementById('pay-button').style.display = 'none';
-            document.getElementById('payment-processing-section').classList.remove('d-none');
-            startStatusChecking();
-        }
-    });
-</script>
+        // Cleanup on page leave
+        window.addEventListener('beforeunload', () => clearInterval(statusCheckInterval));
+    </script>
 </x-guest-layout>
