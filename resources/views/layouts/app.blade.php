@@ -56,7 +56,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                        <!-- Logo and Brand -->
                         <div class="d-flex align-items-center">
-                            <img src="{{ asset('storage/web_pics/yurei-036.jpeg') }}" 
+                            <img src="{{ asset('assets/images/yurei-036.jpeg') }}" 
                                 alt="YUREI Kenya Logo" 
                                 class="me-3"
                                 style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px;">
